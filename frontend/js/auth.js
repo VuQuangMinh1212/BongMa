@@ -2,11 +2,13 @@ import { state } from "./state.js";
 import { GHOST_DATA_KEY } from "./config.js";
 import {
   TOKEN_KEY,
-  register,
   login,
+  register,
   loadGameFromServer,
   saveGameToServer,
 } from "./utils.js";
+
+export { TOKEN_KEY, login, register };
 
 export let currentUser = null;
 
@@ -22,29 +24,118 @@ export function showMainScreen() {
 
 export function initAuth(onAuthenticated) {
   const token = localStorage.getItem(TOKEN_KEY);
+
   if (!token) {
     showLoginScreen();
   } else {
     showMainScreen();
     setTimeout(() => onAuthenticated(), 0);
   }
+
+  let isLoginMode = true;
+
+  const authTitle = document.getElementById("auth-title");
+  const authError = document.getElementById("auth-error");
+  const inUser = document.getElementById("auth-username");
+  const inPass = document.getElementById("auth-password");
+  const btnDoAuth = document.getElementById("btn-do-auth");
+  const btnToggle = document.getElementById("btn-toggle-auth");
+  const btnLogout = document.getElementById("btn-logout");
+
+  btnToggle?.addEventListener("click", () => {
+    isLoginMode = !isLoginMode;
+    authError.innerText = "";
+    if (isLoginMode) {
+      authTitle.innerText = "ĐĂNG NHẬP";
+      btnDoAuth.innerText = "ĐĂNG NHẬP";
+      btnToggle.innerText = "Đăng ký ngay";
+    } else {
+      authTitle.innerText = "ĐĂNG KÝ MỚI";
+      btnDoAuth.innerText = "TẠO TÀI KHOẢN";
+      btnToggle.innerText = "Đăng nhập";
+    }
+  });
+
+  btnDoAuth?.addEventListener("click", async () => {
+    const u = inUser.value.trim();
+    const p = inPass.value.trim();
+    if (!u || !p) {
+      authError.style.color = "#ff4444";
+      authError.innerText = "Vui lòng nhập đủ thông tin!";
+      return;
+    }
+
+    authError.style.color = "#00ffcc";
+    authError.innerText = "Đang kết nối...";
+    btnDoAuth.disabled = true;
+
+    try {
+      if (!isLoginMode) {
+        await register(u, p);
+        authError.innerText = "Đăng ký thành công! Đang đăng nhập...";
+      }
+      const data = await login(u, p);
+      localStorage.setItem(TOKEN_KEY, data.token);
+      inUser.value = "";
+      inPass.value = "";
+      authError.innerText = "";
+      showMainScreen();
+      await onAuthenticated();
+    } catch (err) {
+      authError.style.color = "#ff4444";
+      authError.innerText = err.message || "Đăng nhập thất bại";
+    } finally {
+      btnDoAuth.disabled = false;
+    }
+  });
+
+  [inUser, inPass].forEach((el) => {
+    el?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") btnDoAuth.click();
+    });
+  });
+
+  btnLogout?.addEventListener("click", () => {
+    if (confirm("Bạn có chắc muốn đăng xuất?")) {
+      localStorage.removeItem(TOKEN_KEY);
+      location.reload();
+    }
+  });
 }
 
 export async function syncRemoteState() {
-  let remote = await loadGameFromServer(currentUser);
-  if (!remote || !remote.gameState) return;
+  try {
+    const remote = await loadGameFromServer();
+    if (!remote || !remote.gameState) return;
 
-  let saved = {
-    level: remote.gameState.level || 1,
-    runs: remote.gameState.runs || [],
-    player: remote.gameState.player || null,
-    ownedCharacters: remote.gameState.ownedCharacters || ["speedster"],
-    selectedCharacter: remote.gameState.selectedCharacter || "speedster",
-    characterUpgrades: remote.gameState.characterUpgrades || {},
-  };
-  localStorage.setItem(GHOST_DATA_KEY, JSON.stringify(saved));
+    const saved = {
+      level: remote.gameState.level || 1,
+      runs: remote.gameState.runs || [],
+      player: remote.gameState.player || null,
+      ownedCharacters: remote.ownedCharacters ||
+        remote.gameState.ownedCharacters || ["speedster"],
+      selectedCharacter:
+        remote.selectedCharacter ||
+        remote.gameState.selectedCharacter ||
+        "speedster",
+      characterUpgrades:
+        remote.characterUpgrades || remote.gameState.characterUpgrades || {},
+    };
+
+    localStorage.setItem(GHOST_DATA_KEY, JSON.stringify(saved));
+
+    state.ownedCharacters = saved.ownedCharacters;
+    state.selectedCharacter = saved.selectedCharacter;
+    state.characterUpgrades = saved.characterUpgrades;
+    if (remote.coins !== undefined) {
+      if (!state.player) state.player = {};
+      state.player.coins = remote.coins;
+    }
+  } catch (e) {
+    console.warn("syncRemoteState failed:", e);
+  }
 }
 
 export function persistState() {
-  saveGameToServer(currentUser, state, GHOST_DATA_KEY);
+  saveGameToServer(state, GHOST_DATA_KEY);
 }

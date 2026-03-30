@@ -10,7 +10,25 @@ import { updateBullets, playerTakeDamage } from "./combat.js";
  * Trả về true nếu stage kết thúc (để flow.js gọi nextStage).
  */
 export function update(ctx, canvas, changeStateFn) {
-  let { player, boss, bullets, ghosts, keys, mouse } = state;
+  let { player, boss, bullets, ghosts, keys, mouse, activeBuffs } = state;
+
+  // Khởi tạo dự phòng nếu buff chưa load kịp
+  let buffs = activeBuffs || { q: 0, e: 0, r: 0 };
+
+  // --- ÁP DỤNG BUFF VÀO CHỈ SỐ KỸ NĂNG ---
+  let isSpeedsterQ = player.characterId === "speedster" && buffs.q > 0;
+  let currentSpeed = player.speed * (isSpeedsterQ ? 1.5 : 1);
+
+  let isSpeedsterE = player.characterId === "speedster" && buffs.e > 0;
+  let currentFireRate = isSpeedsterE ? 4 : player.fireRate;
+
+  let isSharpshootE = player.characterId === "sharpshooter" && buffs.e > 0;
+  let currentMultiShot = player.multiShot + (isSharpshootE ? 3 : 0);
+
+  let isSharpshootQ = player.characterId === "sharpshooter" && buffs.q > 0;
+  let currentBounces = (player.bounces || 0) + (isSharpshootQ ? 2 : 0);
+
+  let isTimeFrozen = player.characterId === "mage" && buffs.r > 0;
 
   // --- Grace period & dash cooldown ---
   if (player.gracePeriod > 0) player.gracePeriod--;
@@ -61,14 +79,15 @@ export function update(ctx, canvas, changeStateFn) {
     player.dashDy = dy;
   }
 
-  // --- Apply movement ---
+  // --- Apply movement (Sử dụng currentSpeed đã tính buff) ---
   if (player.dashTimeLeft > 0) {
-    player.x += player.dashDx * (player.speed * 3);
-    player.y += player.dashDy * (player.speed * 3);
+    player.x += player.dashDx * (currentSpeed * 3);
+    player.y += player.dashDy * (currentSpeed * 3);
+    if (player.dashEffect) player.dashEffect(); // Trigger sát thương dash
     player.dashTimeLeft--;
   } else {
-    player.x += dx * player.speed;
-    player.y += dy * player.speed;
+    player.x += dx * currentSpeed;
+    player.y += dy * currentSpeed;
   }
 
   // Clamp vào canvas
@@ -92,53 +111,65 @@ export function update(ctx, canvas, changeStateFn) {
     player.cooldown <= 0 &&
     player.dashTimeLeft <= 0
   ) {
+    let originalMulti = state.player.multiShot;
+    let originalBounce = state.player.bounces;
+    state.player.multiShot = currentMultiShot;
+    state.player.bounces = currentBounces;
+
     spawnBullet(player.x, player.y, mouse.x, mouse.y, true);
-    player.cooldown = player.fireRate;
+
+    state.player.multiShot = originalMulti;
+    state.player.bounces = originalBounce;
+
+    player.cooldown = currentFireRate;
     shotThisFrame = true;
     targetX = mouse.x;
     targetY = mouse.y;
   }
   mouse.clicked = false;
 
-  // Ghi record (cho ghost playback)
+  // Ghi record
   if (!state.isBossLevel) {
     let frameData = [Math.round(player.x), Math.round(player.y)];
     if (shotThisFrame) frameData.push(Math.round(targetX), Math.round(targetY));
     state.currentRunRecord.push(frameData);
   }
 
-  let isInvulnerable = player.gracePeriod > 0 || player.dashTimeLeft > 0;
+  let isInvulnSkill =
+    buffs.e > 0 &&
+    (player.characterId === "tank" || player.characterId === "ghost");
+  let isInvulnerable =
+    player.gracePeriod > 0 || player.dashTimeLeft > 0 || isInvulnSkill;
 
   // --- Boss logic ---
-  if (boss) {
-    spawnBossAttack();
-
-    if (!boss.ghostsActive) {
-      if (boss.summonCooldown > 0) boss.summonCooldown--;
-      if (boss.summonCooldown <= 0) {
-        bossSummonGhosts();
-        boss.ghostsActive = true;
-        ghosts = state.ghosts;
+  if (!isTimeFrozen) {
+    if (boss) {
+      spawnBossAttack();
+      if (!boss.ghostsActive) {
+        if (boss.summonCooldown > 0) boss.summonCooldown--;
+        if (boss.summonCooldown <= 0) {
+          bossSummonGhosts();
+          boss.ghostsActive = true;
+          ghosts = state.ghosts;
+        }
+      } else {
+        if (ghosts.length === 0) {
+          boss.ghostsActive = false;
+          boss.summonCooldown = 10 * FPS;
+        }
       }
-    } else {
-      if (ghosts.length === 0) {
-        boss.ghostsActive = false;
-        boss.summonCooldown = 10 * FPS;
+      if (
+        !isInvulnerable &&
+        dist(boss.x, boss.y, player.x, player.y) < boss.radius + player.radius
+      ) {
+        playerTakeDamage(ctx, canvas, changeStateFn);
       }
-    }
-
-    if (
-      !isInvulnerable &&
-      dist(boss.x, boss.y, player.x, player.y) < boss.radius + player.radius
-    ) {
-      playerTakeDamage(ctx, canvas, changeStateFn);
     }
   }
 
   // --- Bullet update & collision ---
-  updateBullets(ctx, canvas, changeStateFn);
+  updateBullets(ctx, canvas, changeStateFn, isTimeFrozen);
 
-  // Kiểm tra boss bị kill
   if (state._bossKilled) {
     state._bossKilled = false;
     return "BOSS_KILLED";
@@ -147,57 +178,61 @@ export function update(ctx, canvas, changeStateFn) {
   // --- Ghost update ---
   let activeGhosts = 0;
   for (let g of state.ghosts) {
-    let exactIndex = g.timer * g.speedRate;
-    let idx1 = Math.floor(exactIndex);
+    if (!isTimeFrozen) {
+      let exactIndex = g.timer * g.speedRate;
+      let idx1 = Math.floor(exactIndex);
 
-    if (idx1 < g.record.length) {
-      activeGhosts++;
-      if (g.isStunned > 0) {
-        g.isStunned--;
-      } else {
-        let prevX = g.x,
-          prevY = g.y;
-        let action1 = g.record[idx1];
-
-        if (idx1 + 1 < g.record.length) {
-          let action2 = g.record[idx1 + 1];
-          let t = exactIndex - idx1;
-          g.x = action1[0] + (action2[0] - action1[0]) * t;
-          g.y = action1[1] + (action2[1] - action1[1]) * t;
+      if (idx1 < g.record.length) {
+        activeGhosts++;
+        if (g.isStunned > 0) {
+          g.isStunned--;
         } else {
-          g.x = action1[0];
-          g.y = action1[1];
-        }
+          let prevX = g.x,
+            prevY = g.y;
+          let action1 = g.record[idx1];
 
-        g.historyPath.push({ x: g.x, y: g.y });
-        if (g.historyPath.length > 8) g.historyPath.shift();
+          if (idx1 + 1 < g.record.length) {
+            let action2 = g.record[idx1 + 1];
+            let t = exactIndex - idx1;
+            g.x = action1[0] + (action2[0] - action1[0]) * t;
+            g.y = action1[1] + (action2[1] - action1[1]) * t;
+          } else {
+            g.x = action1[0];
+            g.y = action1[1];
+          }
 
-        if (g.lastIdx !== idx1 && action1.length === 4) {
-          spawnBullet(g.x, g.y, action1[2], action1[3], false, 0, "ghost");
-        }
-        g.lastIdx = idx1;
+          g.historyPath.push({ x: g.x, y: g.y });
+          if (g.historyPath.length > 8) g.historyPath.shift();
 
-        let ghostIsDashing = dist(g.x, g.y, prevX, prevY) > 8 * g.speedRate;
-        if (
-          !isInvulnerable &&
-          !ghostIsDashing &&
-          dist(g.x, g.y, player.x, player.y) < player.radius + g.radius - 2
-        ) {
-          playerTakeDamage(ctx, canvas, changeStateFn);
+          if (g.lastIdx !== idx1 && action1.length === 4) {
+            spawnBullet(g.x, g.y, action1[2], action1[3], false, 0, "ghost");
+          }
+          g.lastIdx = idx1;
+
+          let ghostIsDashing = dist(g.x, g.y, prevX, prevY) > 8 * g.speedRate;
+          if (
+            !isInvulnerable &&
+            !ghostIsDashing &&
+            dist(g.x, g.y, player.x, player.y) < player.radius + g.radius - 2
+          ) {
+            playerTakeDamage(ctx, canvas, changeStateFn);
+          }
         }
+      } else {
+        g.historyPath.shift();
+        g.x = -100;
+        g.y = -100;
       }
+      g.timer++;
     } else {
-      g.historyPath.shift();
-      g.x = -100;
-      g.y = -100;
+      if (g.x > 0) activeGhosts++;
     }
-    g.timer++;
   }
 
   if (state.isBossLevel) {
     UI.ghosts.innerText = boss?.ghostsActive
       ? `Bóng ma/Dummy đợt này: ${activeGhosts}`
-      : `Boss đang triệu hồi (${Math.ceil(boss.summonCooldown / FPS)}s)...`;
+      : `Boss đang triệu hồi (${Math.ceil((boss?.summonCooldown || 0) / FPS)}s)...`;
   } else {
     UI.ghosts.innerText = `Bóng ma/Dummy: ${activeGhosts}`;
   }

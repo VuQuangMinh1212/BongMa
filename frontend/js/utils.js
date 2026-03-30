@@ -1,11 +1,42 @@
-export const TOKEN_KEY = "AsynchronousEchoes_Token";
-const API_URL = "http://localhost:3000/api";
+export const TOKEN_KEY = "auth_token";
+const API = "http://localhost:3000";
 
 export function dist(x1, y1, x2, y2) {
   return Math.hypot(x2 - x1, y2 - y1);
 }
 
+function authHeaders() {
+  const token = localStorage.getItem(TOKEN_KEY);
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
+export async function register(username, password) {
+  const res = await fetch(`${API}/api/register`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Đăng ký thất bại");
+  return data;
+}
+
+export async function login(username, password) {
+  const res = await fetch(`${API}/api/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.message || "Đăng nhập thất bại");
+  return data;
+}
+
 export function saveGame(state, GHOST_DATA_KEY) {
+  if (!state.player) return;
   let savePlayer = { ...state.player };
   delete savePlayer.gracePeriod;
   localStorage.setItem(
@@ -21,43 +52,14 @@ export function saveGame(state, GHOST_DATA_KEY) {
   );
 }
 
-// GỌI API ĐĂNG KÝ
-export async function register(username, password) {
-  const res = await fetch(`${API_URL}/register`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || "Lỗi đăng ký");
-  return data;
-}
-
-// GỌI API ĐĂNG NHẬP
-export async function login(username, password) {
-  const res = await fetch(`${API_URL}/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username, password }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || "Lỗi đăng nhập");
-  return data;
-}
-
 export async function saveGameToServer(state, GHOST_DATA_KEY) {
+  if (!state.player) return;
   saveGame(state, GHOST_DATA_KEY);
 
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (!token) return;
-
   try {
-    await fetch(`${API_URL}/save`, {
+    await fetch(`${API}/api/save`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+      headers: authHeaders(),
       body: JSON.stringify({
         gameState: {
           level: state.currentLevel,
@@ -78,17 +80,10 @@ export async function saveGameToServer(state, GHOST_DATA_KEY) {
   }
 }
 
-// GỌI API TẢI GAME TỪ SERVER (Dùng Token)
 export async function loadGameFromServer() {
-  const token = localStorage.getItem(TOKEN_KEY);
-  if (!token) return null;
-
   try {
-    let res = await fetch(`${API_URL}/load`, {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+    const res = await fetch(`${API}/api/load`, {
+      headers: authHeaders(),
     });
     if (!res.ok) return null;
     return await res.json();

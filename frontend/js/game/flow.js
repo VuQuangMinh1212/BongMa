@@ -8,11 +8,8 @@ import {
   ensureCharacterData,
 } from "../characters/manager.js";
 import { syncRemoteState, persistState } from "../auth.js";
+import { initSkills } from "./skills.js";
 
-/**
- * Khởi tạo màn chơi mới hoặc màn tiếp theo.
- * @param {boolean} isNextLevel - true nếu chuyển sang màn kế tiếp
- */
 export function initGame(isNextLevel = false) {
   let saved = JSON.parse(localStorage.getItem(GHOST_DATA_KEY) || "{}");
 
@@ -42,14 +39,14 @@ export function initGame(isNextLevel = false) {
     }
   }
 
-  // Đảm bảo XP tồn tại
+  initSkills();
+
   if (state.player.experience == null) state.player.experience = 0;
   if (state.player.experienceToLevel == null)
     state.player.experienceToLevel = 100;
 
   state.isBossLevel = state.currentLevel % 5 === 0;
 
-  // Reset vị trí & frame
   state.player.x = 400;
   state.player.y = 500;
   state.player.gracePeriod = 120;
@@ -67,7 +64,6 @@ export function initGame(isNextLevel = false) {
     ? 999999
     : targetSurviveSeconds * FPS;
 
-  // Khởi tạo ghosts
   state.ghosts = [];
   let ghostLimit = Math.min(state.currentLevel, 10);
   let runsToUse = state.pastRuns.slice(-ghostLimit);
@@ -96,18 +92,13 @@ export function initGame(isNextLevel = false) {
     });
   });
 
-  // Boss setup
   if (state.isBossLevel) {
     state.maxFramesToSurvive = 999999;
     let bossStep = Math.floor(state.currentLevel / 5) - 1;
     let bossModes = [];
-    if (bossStep < 5) {
-      bossModes = [bossStep];
-    } else {
-      let firstMode = (bossStep - 5) % 5;
-      let secondMode = (bossStep - 4) % 5;
-      bossModes = [firstMode, secondMode];
-    }
+    if (bossStep < 5) bossModes = [bossStep];
+    else bossModes = [(bossStep - 5) % 5, (bossStep - 4) % 5];
+
     state.boss = {
       x: 400,
       y: 150,
@@ -132,9 +123,6 @@ export function initGame(isNextLevel = false) {
   UI.ghosts.innerText = `Bóng ma: ${state.ghosts.length}`;
 }
 
-/**
- * Chuyển đổi game state và cập nhật UI tương ứng.
- */
 export function changeState(newGameState, gameLoopFn) {
   let oldState = state.gameState;
   state.gameState = newGameState;
@@ -144,10 +132,8 @@ export function changeState(newGameState, gameLoopFn) {
   UI.bossReward.classList.add("hidden");
 
   if (newGameState === "PLAYING") {
-    if (oldState !== "PLAYING") {
-      if (state.loopId) cancelAnimationFrame(state.loopId);
-      gameLoopFn();
-    }
+    if (state.loopId) cancelAnimationFrame(state.loopId);
+    if (gameLoopFn) gameLoopFn();
   } else if (newGameState === "MENU" || newGameState === "GAME_OVER") {
     UI.main.classList.remove("hidden");
     UI.title.className =
@@ -192,13 +178,11 @@ export function changeState(newGameState, gameLoopFn) {
 export async function onCardSelected(gameLoopFn) {
   saveGame(state, GHOST_DATA_KEY);
   persistState();
-
   if (state.upgradeFromXP) {
     state.upgradeFromXP = false;
     changeState("PLAYING", gameLoopFn);
     return;
   }
-
   initGame(true);
   changeState("PLAYING", gameLoopFn);
 }

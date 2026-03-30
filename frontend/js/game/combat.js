@@ -5,10 +5,20 @@ import { UI, updateHealthUI, updateXPUI } from "../ui.js";
 
 /**
  * Xử lý khi player nhận sát thương.
- * Tính đến grace period, dash, shield.
+ * Cập nhật để tính đến Kỹ năng Bất tử
  */
 export function playerTakeDamage(ctx, canvas, changeStateFn) {
   if (state.player.gracePeriod > 0 || state.player.dashTimeLeft > 0) return;
+
+  // Bất tử từ Kỹ năng Tank E hoặc Ghost Q
+  let buffs = state.activeBuffs || { q: 0, e: 0, r: 0 };
+  if (
+    buffs.e > 0 &&
+    (state.player.characterId === "tank" ||
+      state.player.characterId === "ghost")
+  ) {
+    return;
+  }
 
   if (state.player.shield > 0) {
     state.player.shield--;
@@ -27,9 +37,6 @@ export function playerTakeDamage(ctx, canvas, changeStateFn) {
   if (state.player.hp <= 0) changeStateFn("GAME_OVER");
 }
 
-/**
- * Cộng XP cho player, kiểm tra level-up.
- */
 export function addExperience(amount, changeStateFn) {
   if (!state.player) return;
   state.player.experience += amount;
@@ -49,19 +56,34 @@ export function addExperience(amount, changeStateFn) {
 }
 
 /**
- * Cập nhật tất cả bullets: di chuyển, bounce, va chạm boss/ghost/player.
+ * Cập nhật bullets, tích hợp Đóng băng thời gian.
  */
-export function updateBullets(ctx, canvas, changeStateFn) {
+export function updateBullets(
+  ctx,
+  canvas,
+  changeStateFn,
+  isTimeFrozen = false,
+) {
   let { player, boss, bullets, ghosts } = state;
-  let isInvulnerable = player.gracePeriod > 0 || player.dashTimeLeft > 0;
+  let buffs = state.activeBuffs || { q: 0, e: 0, r: 0 };
+  let isInvulnSkill =
+    buffs.e > 0 &&
+    (player.characterId === "tank" || player.characterId === "ghost");
+  let isInvulnerable =
+    player.gracePeriod > 0 || player.dashTimeLeft > 0 || isInvulnSkill;
 
   for (let i = bullets.length - 1; i >= 0; i--) {
     let b = bullets[i];
-    b.x += b.vx;
-    b.y += b.vy;
-    b.life--;
 
-    // Bounce tường
+    // Đạn địch bị đóng băng
+    if (!b.isPlayer && isTimeFrozen) {
+      // Giữ nguyên vị trí
+    } else {
+      b.x += b.vx;
+      b.y += b.vy;
+      b.life--;
+    }
+
     let hitWall = false;
     if (b.x < b.radius) {
       b.x = b.radius;
@@ -72,6 +94,7 @@ export function updateBullets(ctx, canvas, changeStateFn) {
       b.vx *= -1;
       hitWall = true;
     }
+
     if (b.y < b.radius) {
       b.y = b.radius;
       b.vy *= -1;
@@ -95,7 +118,6 @@ export function updateBullets(ctx, canvas, changeStateFn) {
     }
 
     if (b.isPlayer) {
-      // Va chạm boss
       if (boss && dist(b.x, b.y, boss.x, boss.y) < boss.radius + b.radius) {
         boss.hp -= 1;
         addExperience(2, changeStateFn);
@@ -104,13 +126,11 @@ export function updateBullets(ctx, canvas, changeStateFn) {
         bullets.splice(i, 1);
         if (boss.hp <= 0) {
           state.player.coins = (state.player.coins || 0) + 100;
-          // nextStage được gọi từ flow.js, emit event để tránh circular dep
           state._bossKilled = true;
         }
         continue;
       }
 
-      // Va chạm ghost
       let hitGhost = false;
       for (let j = ghosts.length - 1; j >= 0; j--) {
         let g = ghosts[j];
@@ -135,7 +155,6 @@ export function updateBullets(ctx, canvas, changeStateFn) {
       }
       if (hitGhost) continue;
     } else {
-      // Đạn địch trúng player
       if (
         !isInvulnerable &&
         dist(b.x, b.y, player.x, player.y) < player.radius + b.radius - 2

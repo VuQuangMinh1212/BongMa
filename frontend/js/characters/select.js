@@ -1,10 +1,16 @@
 import { state } from "../state.js";
 import { CHARACTERS, GHOST_DATA_KEY } from "../config.js";
 import { saveGame } from "../utils.js";
+import { persistState } from "../auth.js"; // Import hàm lưu server từ auth
 
 export function openCharacterSelect(changeStateFn) {
   changeStateFn("MENU");
   document.getElementById("screen-main").classList.add("hidden");
+
+  // Đảm bảo ẩn màn hình detail nếu đang mở
+  let detailScreen = document.getElementById("screen-upgrade-detail");
+  if (detailScreen) detailScreen.classList.add("hidden");
+
   document.getElementById("screen-char-select").classList.remove("hidden");
   renderCharacterSelect();
 }
@@ -20,45 +26,47 @@ export function renderCharacterSelect() {
     let selected = state.selectedCharacter === char.id;
     let card = document.createElement("div");
     card.className = "card";
+    card.style.width = "170px"; // Kích thước thẻ như file main cũ
+
+    let skillsHtml = char.skills
+      .map((s) => `• <b>${s.name}</b>: ${s.desc}`)
+      .join("<br>");
+
     card.innerHTML = `
       <h3>${char.name} ${selected ? "(Đã chọn)" : ""}</h3>
-      <p>HP: ${char.baseStats.hp}</p>
-      <p>Tốc độ: ${char.baseStats.speed}</p>
+      <p style="margin-bottom: 5px;">HP: ${char.baseStats.hp} | Tốc độ: ${char.baseStats.speed}</p>
+      <div class="char-skills" style="font-size: 0.9em; margin-bottom: 10px; height: 80px; overflow-y: auto;">${skillsHtml}</div>
     `;
 
     if (owned) {
-      // Nút chọn nhân vật
+      // Nút Chọn
       let selBtn = document.createElement("button");
       selBtn.innerText = selected ? "Đã chọn" : "Chọn";
       selBtn.disabled = selected;
       selBtn.onclick = () => {
         state.selectedCharacter = char.id;
         saveGame(state, GHOST_DATA_KEY);
+        persistState();
         renderCharacterSelect();
       };
       card.appendChild(selBtn);
 
-      // Nút nâng cấp HP
+      // Nút Nâng cấp (Mở màn hình chi tiết)
       let upgBtn = document.createElement("button");
-      upgBtn.innerText = "Nâng cấp HP (100 coins)";
+      upgBtn.innerText = "Nâng cấp";
+      upgBtn.style.background = "#00aaff";
       upgBtn.onclick = () => {
-        if (state.player.coins >= 100) {
-          state.player.coins -= 100;
-          let entry = state.characterUpgrades[char.id] || {
-            hp: 0,
-            speed: 0,
-            fireRate: 0,
-          };
-          entry.hp = (entry.hp || 0) + 1;
-          state.characterUpgrades[char.id] = entry;
-          saveGame(state, GHOST_DATA_KEY);
-          renderCharacterSelect();
-        }
+        document.getElementById("screen-char-select").classList.add("hidden");
+        document
+          .getElementById("screen-upgrade-detail")
+          .classList.remove("hidden");
+        renderUpgradeDetail(char.id);
       };
       card.appendChild(upgBtn);
     } else {
       let lock = document.createElement("div");
       lock.innerText = "Chưa mở khóa";
+      lock.style.marginTop = "10px";
       card.appendChild(lock);
     }
 
@@ -66,9 +74,101 @@ export function renderCharacterSelect() {
   });
 }
 
+export function renderUpgradeDetail(charId) {
+  let char = CHARACTERS.find((c) => c.id === charId);
+  let upg = state.characterUpgrades[charId] || { hp: 0, speed: 0, fireRate: 0 };
+
+  document.getElementById("upg-detail-title").innerText =
+    `NÂNG CẤP: ${char.name.toUpperCase()}`;
+  document.getElementById("upg-detail-coins").innerText =
+    `Tiền hiện có: ${state.player?.coins || 0}`;
+
+  const MAX_LEVEL = 10;
+  const getCost = (lvl) => 100 + lvl * 50;
+
+  const statsConfigs = [
+    {
+      key: "hp",
+      name: "Máu Tối Đa",
+      current: upg.hp || 0,
+      effect: "+1 HP / Cấp",
+    },
+    {
+      key: "speed",
+      name: "Tốc độ chạy",
+      current: upg.speed || 0,
+      effect: "+5% Tốc độ / Cấp",
+    },
+    {
+      key: "fireRate",
+      name: "Tốc độ bắn",
+      current: upg.fireRate || 0,
+      effect: "Giảm Delay / Cấp",
+    },
+  ];
+
+  let container = document.getElementById("upg-detail-stats");
+  container.innerHTML = "";
+
+  statsConfigs.forEach((stat) => {
+    let row = document.createElement("div");
+    row.className = "stat-row";
+
+    let isMax = stat.current >= MAX_LEVEL;
+    let cost = getCost(stat.current);
+    let canAfford = state.player.coins >= cost && !isMax;
+
+    // Vẽ Progress Bar
+    let barHtml = "";
+    for (let i = 0; i < MAX_LEVEL; i++) {
+      barHtml += `<div class="stat-bar-segment ${i < stat.current ? "filled" : ""}"></div>`;
+    }
+
+    row.innerHTML = `
+      <div class="stat-info">
+        ${stat.name}<br>
+        <span style="font-size:0.8em; color:#00ffcc;">${stat.effect}</span>
+      </div>
+      <div class="stat-bar-container">${barHtml}</div>
+    `;
+
+    let btn = document.createElement("button");
+    btn.className = "btn-stat-upg";
+    btn.innerText = isMax ? "TỐI ĐA" : `+ CẤP (${cost})`;
+    btn.disabled = !canAfford;
+    btn.onclick = () => {
+      if (state.player.coins >= cost && !isMax) {
+        state.player.coins -= cost;
+        if (!state.characterUpgrades[charId]) {
+          state.characterUpgrades[charId] = { hp: 0, speed: 0, fireRate: 0 };
+        }
+        state.characterUpgrades[charId][stat.key] = stat.current + 1;
+        saveGame(state, GHOST_DATA_KEY);
+        persistState();
+        renderUpgradeDetail(charId); // Render lại để update UI
+      }
+    };
+
+    row.appendChild(btn);
+    container.appendChild(row);
+  });
+
+  // Nút quay lại
+  let backBtn = document.getElementById("btn-upg-detail-back");
+  if (backBtn) {
+    backBtn.onclick = () => {
+      document.getElementById("screen-upgrade-detail").classList.add("hidden");
+      document.getElementById("screen-char-select").classList.remove("hidden");
+      renderCharacterSelect();
+    };
+  }
+}
+
 export function closeShopOrSelect() {
   document.getElementById("screen-shop").classList.add("hidden");
   document.getElementById("screen-char-select").classList.add("hidden");
+  let detailScreen = document.getElementById("screen-upgrade-detail");
+  if (detailScreen) detailScreen.classList.add("hidden");
   document.getElementById("screen-main").classList.remove("hidden");
 }
 
