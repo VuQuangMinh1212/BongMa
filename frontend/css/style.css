@@ -175,13 +175,8 @@ canvas {
   text-align: center;
 }
 #boss-name {
-  color: #ff0055;
-  font-weight: bold;
-  font-size: 16px;
-  margin-bottom: 5px;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  text-shadow: 0 0 5px red;
+  color: var(--boss-name-color, #ff0055);
+  text-shadow: 0 0 5px var(--boss-name-shadow, red);
 }
 #boss-hp-bg {
   width: 100%;
@@ -524,4 +519,13 @@ button:disabled {
   color: gold;
   font-weight: bold;
   margin-top: 5px;
+}
+.phase-transition {
+  animation: bossFlash 0.3s ease;
+}
+
+@keyframes bossFlash {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(2); }
+  100% { filter: brightness(1); }
 }

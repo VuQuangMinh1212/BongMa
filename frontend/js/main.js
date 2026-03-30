@@ -10,6 +10,7 @@ import { openShop } from "./characters/shop.js";
 import { setupMenuButtons } from "./characters/select.js";
 import { evolve } from "./game/evolutions.js";
 import { handleSkillsUpdate } from "./game/skills.js";
+import { updateBossUI } from "./ui.js";
 
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
@@ -34,6 +35,7 @@ function gameLoop() {
   handleSkillsUpdate(canvas, changeStateBound);
 
   const result = update(ctx, canvas, changeStateBound);
+  updateBossUI();
 
   if (result === "BOSS_KILLED" || result === "STAGE_CLEAR") {
     nextStageBound();

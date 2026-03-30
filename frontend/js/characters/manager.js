@@ -22,9 +22,12 @@ export function applyCharacterToPlayer(characterId) {
   base.multiShot = data.baseStats.multiShot;
   base.bounces = data.baseStats.bounces;
   base.coins = state.player?.coins || 0;
-  base.shield = state.player?.shield || 0;
-  base.maxShield = state.player?.maxShield || 0;
-  base.shieldRegenTimer = state.player?.shieldRegenTimer || 0;
+
+  // Reset shield properties to initial values
+  base.shield = 0;
+  base.maxShield = 0;
+  base.shieldRegenTimer = 0;
+
   base.characterId = data.id;
 
   return base;

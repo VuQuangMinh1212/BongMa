@@ -10,6 +10,8 @@ import {
 import { syncRemoteState, persistState } from "../auth.js";
 import { initSkills } from "./skills.js";
 import { playBGM, stopAllBGM, playSound } from "./audio.js";
+import { BOSS_TYPES } from "../entities.js";
+import { createBoss } from "../entities.js";
 
 export function initGame(isNextLevel = false) {
   let saved = JSON.parse(localStorage.getItem(GHOST_DATA_KEY) || "{}");
@@ -72,7 +74,7 @@ export function initGame(isNextLevel = false) {
   if (state.player.experienceToLevel == null)
     state.player.experienceToLevel = 100;
 
-  state.isBossLevel = state.currentLevel % 5 === 0;
+  state.isBossLevel = state.currentLevel % 1 === 0;
 
   if (!isNextLevel) {
     state.player.x = 400;
@@ -124,28 +126,39 @@ export function initGame(isNextLevel = false) {
 
   if (state.isBossLevel) {
     state.maxFramesToSurvive = 999999;
-    let bossStep = Math.floor(state.currentLevel / 5) - 1;
-    let bossModes = [];
-    if (bossStep < 5) bossModes = [bossStep];
-    else bossModes = [(bossStep - 5) % 5, (bossStep - 4) % 5];
 
-    state.boss = {
-      x: 400,
-      y: 150,
-      radius: 40,
-      hp: 150 + state.currentLevel * 25,
-      maxHp: 150 + state.currentLevel * 25,
-      attackTimer: 0,
-      attackModes: bossModes,
-      summonCooldown: 5 * FPS,
-      ghostsActive: false,
-    };
+    // Debug: Force a specific boss for testing
+    const debugBossType = "iceBoss"; // Change this to the boss you want to test
+
+    // Select boss type based on level or debug option
+    const bossTypes = Object.keys(BOSS_TYPES);
+    const bossIndex = debugBossType
+      ? bossTypes.indexOf(debugBossType)
+      : (Math.floor(state.currentLevel / 5) - 1) % bossTypes.length;
+    const selectedBossType = bossTypes[bossIndex];
+
+    state.boss = createBoss(selectedBossType);
+
     UI.bossUi.style.display = "block";
-    UI.bossName.innerText = `BOSS MÀN ${state.currentLevel}`;
+    UI.bossName.innerText = state.boss.name;
     UI.bossHp.style.width = "100%";
     state.ghosts = [];
   }
-
+  if (state.isBossLevel && state.boss) {
+    if (!state.boss.ghostsActive) {
+      if (state.boss.summonCooldown > 0) {
+        state.boss.summonCooldown--;
+      } else {
+        bossSummonGhosts();
+        state.boss.ghostsActive = true;
+      }
+    } else {
+      if (state.ghosts.length === 0) {
+        state.boss.ghostsActive = false;
+        state.boss.summonCooldown = 10 * FPS; // Reset cooldown
+      }
+    }
+  }
   updateHealthUI();
   updateXPUI();
   UI.timer.innerText = state.isBossLevel ? "BOSS" : "00:00";

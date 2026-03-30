@@ -218,3 +218,32 @@ export function generateCards(pool, container, isGold, onSelectCallback) {
   updateUpgradeUI();
   updateRerollUI();
 }
+
+export function updateBossUI() {
+  const boss = state.boss;
+  const root = document.documentElement;
+
+  if (!boss || !boss.phaseColors) return;
+
+  const phase = boss.hp <= boss.maxHp / 2 ? 1 : 0;
+
+  // Check if the phase has changed
+  if (boss.currentPhase !== phase) {
+    boss.currentPhase = phase; // Update the current phase
+
+    // Trigger phase transition animation
+    const bossUI = document.getElementById("boss-ui");
+    if (bossUI) {
+      bossUI.classList.add("phase-transition");
+      setTimeout(() => bossUI.classList.remove("phase-transition"), 300); // Remove class after animation
+    }
+  }
+
+  const current = boss.phaseColors[phase];
+
+  // Update CSS variables for boss UI
+  root.style.setProperty("--boss-name-color", current.end);
+  root.style.setProperty("--boss-name-shadow", current.start);
+  root.style.setProperty("--boss-hp-start", current.start);
+  root.style.setProperty("--boss-hp-end", current.end);
+}
