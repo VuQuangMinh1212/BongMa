@@ -1,13 +1,12 @@
 import { state } from "../state.js";
 import { CHARACTERS, GHOST_DATA_KEY } from "../config.js";
 import { saveGame } from "../utils.js";
-import { persistState } from "../auth.js"; // Import hàm lưu server từ auth
+import { persistState } from "../auth.js";
 
 export function openCharacterSelect(changeStateFn) {
   changeStateFn("MENU");
   document.getElementById("screen-main").classList.add("hidden");
 
-  // Đảm bảo ẩn màn hình detail nếu đang mở
   let detailScreen = document.getElementById("screen-upgrade-detail");
   if (detailScreen) detailScreen.classList.add("hidden");
 
@@ -26,20 +25,35 @@ export function renderCharacterSelect() {
     let selected = state.selectedCharacter === char.id;
     let card = document.createElement("div");
     card.className = "card";
-    card.style.width = "170px"; // Kích thước thẻ như file main cũ
+    card.style.width = "190px";
 
     let skillsHtml = char.skills
-      .map((s) => `• <b>${s.name}</b>: ${s.desc}`)
-      .join("<br>");
+      .map((s) => {
+        let keyPrefix = s.key ? `[${s.key.toUpperCase()}] ` : "";
+        return `• <b style="color: #00ffcc">${s.name}</b>: ${s.desc}`;
+      })
+      .join("<br><br>");
+
+    let upg = state.characterUpgrades[char.id] || {
+      hp: 0,
+      speed: 0,
+      fireRate: 0,
+    };
+    let actualHp = char.baseStats.hp + (upg.hp || 0);
+    let actualSpeed = (
+      char.baseStats.speed *
+      (1 + (upg.speed || 0) * 0.05)
+    ).toFixed(1);
 
     card.innerHTML = `
       <h3>${char.name} ${selected ? "(Đã chọn)" : ""}</h3>
-      <p style="margin-bottom: 5px;">HP: ${char.baseStats.hp} | Tốc độ: ${char.baseStats.speed}</p>
-      <div class="char-skills" style="font-size: 0.9em; margin-bottom: 10px; height: 80px; overflow-y: auto;">${skillsHtml}</div>
+      <p style="margin-bottom: 5px; color: #ffaa00; font-weight: bold;">HP: ${actualHp} | Tốc độ: ${actualSpeed}</p>
+      <div class="char-skills" style="font-size: 0.9em; margin-bottom: 10px; height: 110px; overflow-y: auto; text-align: left; padding: 5px; background: rgba(0,0,0,0.3); border-radius: 5px;">
+        ${skillsHtml}
+      </div>
     `;
 
     if (owned) {
-      // Nút Chọn
       let selBtn = document.createElement("button");
       selBtn.innerText = selected ? "Đã chọn" : "Chọn";
       selBtn.disabled = selected;
@@ -51,7 +65,6 @@ export function renderCharacterSelect() {
       };
       card.appendChild(selBtn);
 
-      // Nút Nâng cấp (Mở màn hình chi tiết)
       let upgBtn = document.createElement("button");
       upgBtn.innerText = "Nâng cấp";
       upgBtn.style.background = "#00aaff";
@@ -67,6 +80,8 @@ export function renderCharacterSelect() {
       let lock = document.createElement("div");
       lock.innerText = "Chưa mở khóa";
       lock.style.marginTop = "10px";
+      lock.style.color = "#ff4444";
+      lock.style.fontWeight = "bold";
       card.appendChild(lock);
     }
 
@@ -118,7 +133,6 @@ export function renderUpgradeDetail(charId) {
     let cost = getCost(stat.current);
     let canAfford = state.player.coins >= cost && !isMax;
 
-    // Vẽ Progress Bar
     let barHtml = "";
     for (let i = 0; i < MAX_LEVEL; i++) {
       barHtml += `<div class="stat-bar-segment ${i < stat.current ? "filled" : ""}"></div>`;
@@ -126,7 +140,7 @@ export function renderUpgradeDetail(charId) {
 
     row.innerHTML = `
       <div class="stat-info">
-        ${stat.name}<br>
+        ${stat.name} (Cấp ${stat.current}/${MAX_LEVEL})<br>
         <span style="font-size:0.8em; color:#00ffcc;">${stat.effect}</span>
       </div>
       <div class="stat-bar-container">${barHtml}</div>
@@ -145,7 +159,7 @@ export function renderUpgradeDetail(charId) {
         state.characterUpgrades[charId][stat.key] = stat.current + 1;
         saveGame(state, GHOST_DATA_KEY);
         persistState();
-        renderUpgradeDetail(charId); // Render lại để update UI
+        renderUpgradeDetail(charId);
       }
     };
 
@@ -153,7 +167,6 @@ export function renderUpgradeDetail(charId) {
     container.appendChild(row);
   });
 
-  // Nút quay lại
   let backBtn = document.getElementById("btn-upg-detail-back");
   if (backBtn) {
     backBtn.onclick = () => {

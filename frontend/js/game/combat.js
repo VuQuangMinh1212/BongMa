@@ -120,8 +120,7 @@ export function updateBullets(
     if (b.isPlayer) {
       if (boss && dist(b.x, b.y, boss.x, boss.y) < boss.radius + b.radius) {
         boss.hp -= 1;
-        addExperience(2, changeStateFn);
-        state.player.coins = (state.player.coins || 0) + 20;
+        state.player.coins = (state.player.coins || 0) + 2;
         UI.bossHp.style.width = Math.max(0, (boss.hp / boss.maxHp) * 100) + "%";
         bullets.splice(i, 1);
         if (boss.hp <= 0) {
@@ -141,8 +140,7 @@ export function updateBullets(
         ) {
           if (state.isBossLevel) {
             ghosts.splice(j, 1);
-            addExperience(15, changeStateFn);
-            state.player.coins = (state.player.coins || 0) + 30;
+            state.player.coins = (state.player.coins || 0) + 10;
           } else {
             g.isStunned = 300;
             addExperience(6, changeStateFn);

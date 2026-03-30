@@ -1,6 +1,7 @@
 import { state } from "../state.js";
 import { CHARACTERS, GHOST_DATA_KEY } from "../config.js";
 import { saveGame } from "../utils.js";
+import { persistState } from "../auth.js";
 
 export function openShop(changeStateFn) {
   changeStateFn("MENU");
@@ -19,10 +20,21 @@ export function renderShop() {
     let owned = state.ownedCharacters.includes(char.id);
     let card = document.createElement("div");
     card.className = "card";
+    card.style.width = "190px";
+
+    let skillsHtml = char.skills
+      .map((s) => {
+        let keyPrefix = s.key ? `[${s.key.toUpperCase()}] ` : "";
+        return `• <b style="color: #00ffcc">${s.name}</b>:${s.desc}`;
+      })
+      .join("<br><br>");
+
     card.innerHTML = `
       <h3>${char.name}</h3>
-      <p>Giá: ${char.price}</p>
-      <p>${char.skills[0].desc}</p>
+      <p style="margin-bottom: 5px; color: #ffd700;">Giá: ${char.price}</p>
+      <div class="char-skills" style="font-size: 0.9em; margin-bottom: 10px; height: 110px; overflow-y: auto; text-align: left; padding: 5px; background: rgba(0,0,0,0.3); border-radius: 5px;">
+        ${skillsHtml}
+      </div>
     `;
 
     let btn = document.createElement("button");
@@ -33,6 +45,7 @@ export function renderShop() {
         state.player.coins -= char.price;
         state.ownedCharacters.push(char.id);
         saveGame(state, GHOST_DATA_KEY);
+        persistState();
         renderShop();
       }
     };
