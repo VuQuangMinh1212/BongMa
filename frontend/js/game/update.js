@@ -10,7 +10,8 @@ export function update(ctx, canvas, changeStateFn) {
 
   // Khởi tạo dự phòng nếu buff chưa load kịp
   let buffs = activeBuffs || { q: 0, e: 0, r: 0 };
-  // ===== NEW CHARACTER BUFF FLAGS =====
+
+  // ===== TẤT CẢ BUFF FLAGS =====
   let isBerserkerQ = player.characterId === "berserker" && buffs.q > 0;
   let isBerserkerR = player.characterId === "berserker" && buffs.r > 0;
   let isAssassinE = player.characterId === "assassin" && buffs.e > 0;
@@ -21,8 +22,8 @@ export function update(ctx, canvas, changeStateFn) {
   let isAlchemistR = player.characterId === "alchemist" && buffs.r > 0;
   let isEngineerE = player.characterId === "engineer" && buffs.e > 0;
   let isEngineerR = player.characterId === "engineer" && buffs.r > 0;
-  // ===== ORIGINAL CHARACTER BUFF FLAGS =====
   let isHunterE = player.characterId === "hunter" && buffs.e > 0;
+  let isFrostQ = player.characterId === "frost" && buffs.q > 0; // Đang đóng băng
   let isFrostR = player.characterId === "frost" && buffs.r > 0;
   let isVoidR = player.characterId === "void" && buffs.r > 0;
   let isStormE = player.characterId === "storm" && buffs.e > 0;
@@ -30,26 +31,30 @@ export function update(ctx, canvas, changeStateFn) {
   let isDruidE = player.characterId === "druid" && buffs.e > 0;
   let isSniperQ = player.characterId === "sniper" && buffs.q > 0;
   let isOracleR = player.characterId === "oracle" && buffs.r > 0;
-
-  // BUFF MỚI: BRAWLER & MEDIC
   let isBrawlerE = player.characterId === "brawler" && buffs.e > 0;
   let isMedicE = player.characterId === "medic" && buffs.e > 0;
+  let isScoutR = player.characterId === "scout" && buffs.r > 0;
 
   // --- ÁP DỤNG BUFF VÀO CHỈ SỐ KỸ NĂNG ---
   let isSpeedsterQ = player.characterId === "speedster" && buffs.q > 0;
   let currentSpeed = player.speed * (isSpeedsterQ ? 1.5 : 1);
   if (isBerserkerQ) currentSpeed *= 1.2;
-  if (isSniperQ) currentSpeed *= 0.5; // Tụ điểm làm chậm gắp đôi
+  if (isSniperQ) currentSpeed *= 0.5;
   if (isEngineerE) currentSpeed *= 1.3;
   if (isDruidE) currentSpeed *= 1.3;
-  if (isBrawlerE) currentSpeed *= 1.3; // Tăng lực 30% tốc độ
-  if (isMedicE) currentSpeed *= 1.2;   // Tăng tốc nhẹ 20%
+  if (isBrawlerE) currentSpeed *= 1.3;
+  if (isMedicE) currentSpeed *= 1.2;
+  if (isScoutR) currentSpeed *= 1.4;
+
+  if (isFrostQ) currentSpeed = 0; // FROST Q BẤT ĐỘNG!
 
   let isSpeedsterE = player.characterId === "speedster" && buffs.e > 0;
   let currentFireRate = isSpeedsterE ? 4 : player.fireRate;
   if (isStormE) currentFireRate = Math.max(3, player.fireRate * 0.75);
   if (isBerserkerQ) currentFireRate = Math.max(2, player.fireRate * 0.65);
   if (isEngineerE) currentFireRate = Math.max(3, player.fireRate * 0.6);
+  if (isScoutR) currentFireRate = Math.max(2, player.fireRate * 0.6);
+
   let isSharpshootE = player.characterId === "sharpshooter" && buffs.e > 0;
   let currentMultiShot = player.multiShot + (isSharpshootE ? 3 : 0);
   if (isSummonerE) currentMultiShot += 2;
@@ -60,6 +65,7 @@ export function update(ctx, canvas, changeStateFn) {
   if (isWardenE) currentBounces += 2;
 
   let isTimeFrozen = player.characterId === "mage" && buffs.r > 0;
+
   // --- Grace period & dash cooldown ---
   if (player.gracePeriod > 0) player.gracePeriod--;
   if (player.dashCooldownTimer > 0) player.dashCooldownTimer--;
@@ -83,8 +89,7 @@ export function update(ctx, canvas, changeStateFn) {
   }
 
   // --- Movement input ---
-  let dx = 0,
-    dy = 0;
+  let dx = 0, dy = 0;
   if (keys["w"] || keys["arrowup"]) dy -= 1;
   if (keys["s"] || keys["arrowdown"]) dy += 1;
   if (keys["a"] || keys["arrowleft"]) dx -= 1;
@@ -97,23 +102,18 @@ export function update(ctx, canvas, changeStateFn) {
   }
 
   // --- Dash activation ---
-  if (
-    keys["space"] &&
-    player.dashCooldownTimer <= 0 &&
-    player.dashTimeLeft <= 0 &&
-    (dx !== 0 || dy !== 0)
-  ) {
+  if (keys["space"] && player.dashCooldownTimer <= 0 && player.dashTimeLeft <= 0 && (dx !== 0 || dy !== 0)) {
     player.dashTimeLeft = 12;
     player.dashCooldownTimer = player.dashMaxCooldown;
     player.dashDx = dx;
     player.dashDy = dy;
   }
 
-  // --- Apply movement (Sử dụng currentSpeed đã tính buff) ---
+  // --- Apply movement ---
   if (player.dashTimeLeft > 0) {
     player.x += player.dashDx * (currentSpeed * 3);
     player.y += player.dashDy * (currentSpeed * 3);
-    if (player.dashEffect) player.dashEffect(); // Trigger sát thương dash
+    if (player.dashEffect) player.dashEffect();
     player.dashTimeLeft--;
   } else {
     player.x += dx * currentSpeed;
@@ -121,35 +121,28 @@ export function update(ctx, canvas, changeStateFn) {
   }
 
   // Clamp vào canvas
-  player.x = Math.max(
-    player.radius,
-    Math.min(canvas.width - player.radius, player.x),
-  );
-  player.y = Math.max(
-    player.radius,
-    Math.min(canvas.height - player.radius, player.y),
-  );
+  player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
+  player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, player.y));
 
   // --- Shooting ---
   let shotThisFrame = false;
-  let targetX = 0,
-    targetY = 0;
+  let targetX = 0, targetY = 0;
   if (player.cooldown > 0) player.cooldown--;
 
   if (
     (mouse.clicked || mouse.isDown) &&
     player.cooldown <= 0 &&
-    player.dashTimeLeft <= 0
+    player.dashTimeLeft <= 0 &&
+    !isFrostQ // Cờ chặn bắn khi Frost đang tự đóng băng
   ) {
-    // Tạm thời override stat để áp dụng buff bắn nhiều đạn / nảy tường cho function spawnBullet
     let originalMulti = state.player.multiShot;
     let originalBounce = state.player.bounces;
     state.player.multiShot = currentMultiShot;
     state.player.bounces = currentBounces;
     let isDruidR = player.characterId === "druid" && buffs.r > 0;
+
     if (isAssassinE) {
-      state.activeBuffs.e = 0; // consume buff
-      // Auto-aim to closest enemy
+      state.activeBuffs.e = 0;
       let nearestDist = Infinity;
       let targetObj = null;
       if (boss) {
@@ -166,8 +159,7 @@ export function update(ctx, canvas, changeStateFn) {
         }
       });
 
-      let tx = mouse.x,
-        ty = mouse.y;
+      let tx = mouse.x, ty = mouse.y;
       if (targetObj) {
         tx = targetObj.x;
         ty = targetObj.y;
@@ -177,39 +169,8 @@ export function update(ctx, canvas, changeStateFn) {
       spawnBullet(player.x, player.y, tx, ty, true);
       for (let i = oldLen; i < state.bullets.length; i++) {
         let b = state.bullets[i];
-        b.damage = 2; // Double damage
-        b.radius = 8; // Bigger bullet
-      }
-      // ===== 🌳 DRUID R =====
-      if (isDruidR) {
-        let newLen = state.bullets.length; // fix infinite loop
-
-        for (let i = oldLen; i < newLen; i++) {
-          let b = state.bullets[i];
-
-          // ❌ đã split rồi thì bỏ qua
-          if (b.isSplit) continue;
-
-          for (let j = -1; j <= 1; j += 2) {
-            let angle = Math.atan2(b.vy, b.vx) + j * 0.4;
-
-            spawnBullet(
-              b.x,
-              b.y,
-              b.x + Math.cos(angle) * 100,
-              b.y + Math.sin(angle) * 100,
-              true,
-            );
-
-            // 👉 đánh dấu bullet con
-            let newB = state.bullets[state.bullets.length - 1];
-            newB.isSplit = true;
-            newB.damage = 0.5; // optional balance
-          }
-
-          // 👉 đánh dấu bullet gốc đã split
-          b.isSplit = true;
-        }
+        b.damage = 2;
+        b.radius = 8;
       }
     } else {
       let oldLen = state.bullets.length;
@@ -221,41 +182,29 @@ export function update(ctx, canvas, changeStateFn) {
           state.bullets[i].style = 1;
         }
       }
-      // ===== 🌳 DRUID R =====
-      if (isDruidR) {
-        let newLen = state.bullets.length; // fix infinite loop
+    }
 
-        for (let i = oldLen; i < newLen; i++) {
-          let b = state.bullets[i];
+    // Xử lý Druid R (Đạn phân nhánh)
+    if (isDruidR) {
+      let oldLen = state.bullets.length;
+      let newLen = state.bullets.length;
+      for (let i = 0; i < newLen; i++) {
+        let b = state.bullets[i];
+        if (b.isSplit || !b.isPlayer) continue;
 
-          // ❌ đã split rồi thì bỏ qua
-          if (b.isSplit) continue;
-
-          for (let j = -1; j <= 1; j += 2) {
-            let angle = Math.atan2(b.vy, b.vx) + j * 0.4;
-
-            spawnBullet(
-              b.x,
-              b.y,
-              b.x + Math.cos(angle) * 100,
-              b.y + Math.sin(angle) * 100,
-              true,
-            );
-
-            // 👉 đánh dấu bullet con
-            let newB = state.bullets[state.bullets.length - 1];
-            newB.isSplit = true;
-            newB.damage = 0.5; // optional balance
-          }
-
-          // 👉 đánh dấu bullet gốc đã split
-          b.isSplit = true;
+        for (let j = -1; j <= 1; j += 2) {
+          let angle = Math.atan2(b.vy, b.vx) + j * 0.4;
+          spawnBullet(b.x, b.y, b.x + Math.cos(angle) * 100, b.y + Math.sin(angle) * 100, true);
+          let newB = state.bullets[state.bullets.length - 1];
+          newB.isSplit = true;
+          newB.damage = 0.5;
         }
+        b.isSplit = true;
       }
     }
 
     state.player.multiShot = originalMulti;
-
+    state.player.bounces = originalBounce;
     player.cooldown = currentFireRate;
     shotThisFrame = true;
     targetX = mouse.x;
@@ -270,11 +219,8 @@ export function update(ctx, canvas, changeStateFn) {
     state.currentRunRecord.push(frameData);
   }
 
-  let isInvulnSkill =
-    buffs.e > 0 &&
-    (player.characterId === "tank" || player.characterId === "ghost");
-  let isInvulnerable =
-    player.gracePeriod > 0 || player.dashTimeLeft > 0 || isInvulnSkill;
+  let isInvulnSkill = buffs.e > 0 && (player.characterId === "tank" || player.characterId === "ghost");
+  let isInvulnerable = player.gracePeriod > 0 || player.dashTimeLeft > 0 || isInvulnSkill || isFrostQ;
 
   // --- Boss logic ---
   if (!isTimeFrozen) {
@@ -293,36 +239,27 @@ export function update(ctx, canvas, changeStateFn) {
           boss.summonCooldown = 10 * FPS;
         }
       }
-      if (
-        !isInvulnerable &&
-        dist(boss.x, boss.y, player.x, player.y) < boss.radius + player.radius
-      ) {
+      if (!isInvulnerable && dist(boss.x, boss.y, player.x, player.y) < boss.radius + player.radius) {
         playerTakeDamage(ctx, canvas, changeStateFn);
       }
     }
   }
+
   // ===== SPECIAL EFFECTS =====
 
-  // ===== DRUID Q: orbit =====
+  // Druid Q: orbit
   if (player.characterId === "druid" && buffs.q > 0 && state.druidOrbs) {
     state.druidOrbs.forEach((o) => {
       o.angle += 0.05;
-
       o.x = player.x + Math.cos(o.angle) * o.radius;
       o.y = player.y + Math.sin(o.angle) * o.radius;
-
-      // damage ghost
       state.ghosts.forEach((g) => {
         if (g.x > 0 && dist(o.x, o.y, g.x, g.y) < g.radius + 6) {
           g.isStunned = 30;
           g.hp = (g.hp || 1) - 1;
         }
       });
-
-      // damage boss
-      if (boss && dist(o.x, o.y, boss.x, boss.y) < boss.radius + 6) {
-        boss.hp -= 0.2;
-      }
+      if (boss && dist(o.x, o.y, boss.x, boss.y) < boss.radius + 6) boss.hp -= 0.2;
     });
   }
 
@@ -330,13 +267,7 @@ export function update(ctx, canvas, changeStateFn) {
   if (isSummonerR && (state.frameCount || 0) % 15 === 0) {
     for (let i = 0; i < 4; i++) {
       let angle = Math.random() * Math.PI * 2;
-      spawnBullet(
-        player.x,
-        player.y,
-        player.x + Math.cos(angle) * 100,
-        player.y + Math.sin(angle) * 100,
-        true,
-      );
+      spawnBullet(player.x, player.y, player.x + Math.cos(angle) * 100, player.y + Math.sin(angle) * 100, true);
     }
   }
 
@@ -354,7 +285,7 @@ export function update(ctx, canvas, changeStateFn) {
     });
   }
 
-  // Alchemist R: Convert enemy bullets to player bullets
+  // Alchemist R: Convert enemy bullets
   if (isAlchemistR) {
     state.bullets.forEach((b) => {
       if (!b.isPlayer && dist(player.x, player.y, b.x, b.y) < 250) {
@@ -365,53 +296,41 @@ export function update(ctx, canvas, changeStateFn) {
     });
   }
 
-  // --- Phantoms update (Oracle E) ---
+  // Phantoms update (Oracle E)
   if (state.phantoms) {
     for (let i = state.phantoms.length - 1; i >= 0; i--) {
       state.phantoms[i].life--;
-      if (state.phantoms[i].life <= 0) {
-        state.phantoms.splice(i, 1);
-      }
+      if (state.phantoms[i].life <= 0) state.phantoms.splice(i, 1);
     }
   }
 
-  // Oracle R: Homing bullets function (SỬA LỖI ĐẠN ĐUỔI ORACLE R)
-  if (isOracleR && (state.frameCount || 0) % 2 === 0) { // Check nhanh hơn để bẻ lái mượt hơn
+  // Oracle R: Homing bullets
+  if (isOracleR && (state.frameCount || 0) % 2 === 0) {
     state.bullets.forEach((b) => {
       if (b.isPlayer) {
-        let nearestDist = 400; // SỬA LỖI: Mở rộng phạm vi tìm mục tiêu (300 -> 400)
+        let nearestDist = 400;
         let target = null;
         if (boss) {
           let d = dist(b.x, b.y, boss.x, boss.y);
           if (d < nearestDist && d > boss.radius) {
-            nearestDist = d;
-            target = boss;
+            nearestDist = d; target = boss;
           }
         }
         state.ghosts.forEach((g) => {
-          // SỬA LỖI TRỌNG TÂM: Bỏ điều kiện "g.isStunned <= 0". 
-          // Nếu không bỏ, quái đang bị dính đạn (stun) thì đạn bay tới sẽ bỏ mục tiêu đó đi hướng khác, rất giật cục!
           if (g.x > 0) {
             let d = dist(b.x, b.y, g.x, g.y);
-            if (d < nearestDist) {
-              nearestDist = d;
-              target = g;
-            }
+            if (d < nearestDist) { nearestDist = d; target = g; }
           }
         });
 
         if (target) {
           let currentAngle = Math.atan2(b.vy, b.vx);
           let targetAngle = Math.atan2(target.y - b.y, target.x - b.x);
-
           let diff = targetAngle - currentAngle;
-          // Normalize diff to -PI, PI
           diff = Math.atan2(Math.sin(diff), Math.cos(diff));
-
-          let maxTurn = 0.25; // SỬA LỖI: Tăng khả năng bẻ cong của đạn (trước đây 0.15 quá yếu)
+          let maxTurn = 0.25;
           if (diff > maxTurn) diff = maxTurn;
           if (diff < -maxTurn) diff = -maxTurn;
-
           currentAngle += diff;
           let speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
           b.vx = Math.cos(currentAngle) * speed;
@@ -421,103 +340,159 @@ export function update(ctx, canvas, changeStateFn) {
     });
   }
 
-  // Frost: freeze aura
-  if (player.characterId === "frost" && buffs.r > 0) {
-    state.ghosts.forEach((g) => {
-      if (g.x > 0 && dist(player.x, player.y, g.x, g.y) < 220) {
-        g.isStunned = Math.max(g.isStunned, 30);
+  // FROST R: Bão Tuyết Gây Sát Thương Cực Mạnh Để Tiêu Diệt Quái
+  if (isFrostR) {
+    if (state.frameCount % 10 === 0) { // Cứ 1/6s giật dame 1 lần
+      state.ghosts.forEach((g) => {
+        if (g.x > 0 && dist(player.x, player.y, g.x, g.y) < 200) {
+          g.hp = (g.hp || 1) - 10; // Đủ mạnh để giết sạch quái con bước vào
+        }
+      });
+      if (boss && dist(player.x, player.y, boss.x, boss.y) < 200 + boss.radius) {
+        boss.hp -= 2; // Rút từ từ lượng máu của boss
       }
-    });
+    }
   }
 
-  // Void: delete all enemy bullets
   if (isVoidR) {
-    state.bullets.forEach((b) => {
-      if (!b.isPlayer) b.life = 0;
-    });
+    state.bullets.forEach((b) => { if (!b.isPlayer) b.life = 0; });
   }
 
-  // Reaper: damage aura
   if (isReaperR) {
     state.ghosts.forEach((g) => {
-      if (g.x > 0 && dist(player.x, player.y, g.x, g.y) < 180) {
-        g.isStunned = Math.max(g.isStunned, 60);
-      }
+      if (g.x > 0 && dist(player.x, player.y, g.x, g.y) < 180) g.isStunned = Math.max(g.isStunned, 60);
     });
   }
 
-  // Berserker rage bonus damage
   if (isBerserkerR) {
     state.ghosts.forEach((g) => {
-      if (g.x > 0 && dist(player.x, player.y, g.x, g.y) < 100) {
-        g.isStunned = Math.max(g.isStunned, 60);
-      }
+      if (g.x > 0 && dist(player.x, player.y, g.x, g.y) < 100) g.isStunned = Math.max(g.isStunned, 60);
     });
   }
-  //Hunter
+
+  // HUNTER E: Tiêu diệt quái thường và gây sát thương boss
   if (isHunterE) {
     state.ghosts.forEach((g) => {
-      if (g.x > 0) g.isStunned = Math.max(g.isStunned, 60);
+      if (g.x > 0 && dist(player.x, player.y, g.x, g.y) < 300) {
+        g.hp = 0; // Quái thường bay màu ngay lập tức
+      }
     });
+    if (boss && dist(player.x, player.y, boss.x, boss.y) < 300 + boss.radius) {
+      if (state.frameCount % 15 === 0) boss.hp -= 2; // Rút máu boss từ từ
+    }
   }
-  //Storm
+
   if (buffs.r > 0 && player.characterId === "storm") {
     if (state.frameCount % 10 === 0) {
       state.ghosts.forEach((g) => (g.isStunned = Math.max(g.isStunned, 60)));
     }
   }
-  //Summoner
+
   if (player.characterId === "summoner" && buffs.q > 0) {
     if (state.frameCount % 20 === 0) {
-      spawnBullet(
-        player.x,
-        player.y,
-        player.x + Math.random() * 100,
-        player.y + Math.random() * 100,
-        true,
-      );
+      spawnBullet(player.x, player.y, player.x + Math.random() * 100, player.y + Math.random() * 100, true);
     }
   }
 
-  // ===== ENGINEER Q: Turret =====
+  // Gunner E: Mìn Không Gian
+  if (player.characterId === "gunner" && state.gunnerMines) {
+    for (let i = state.gunnerMines.length - 1; i >= 0; i--) {
+      let m = state.gunnerMines[i];
+      let triggered = false;
+
+      state.ghosts.forEach(g => {
+        if (g.x > 0 && dist(m.x, m.y, g.x, g.y) < 40) triggered = true;
+      });
+      if (boss && dist(m.x, m.y, boss.x, boss.y) < boss.radius + 40) triggered = true;
+
+      if (triggered) {
+        state.ghosts.forEach(g => {
+          if (g.x > 0 && dist(m.x, m.y, g.x, g.y) < 100) {
+            g.hp = (g.hp || 1) - 1;
+            g.isStunned = 45;
+          }
+        });
+        if (boss && dist(m.x, m.y, boss.x, boss.y) < 100) boss.hp -= 5;
+
+        if (!state.explosions) state.explosions = [];
+        state.explosions.push({ x: m.x, y: m.y, radius: 100, life: 10, color: "rgba(255,100,0,0.8)" });
+        state.gunnerMines.splice(i, 1);
+      }
+    }
+  }
+
+  // Gunner R: Pháo Kích
+  if (player.characterId === "gunner" && state.gunnerAirstrikes) {
+    for (let i = state.gunnerAirstrikes.length - 1; i >= 0; i--) {
+      let strike = state.gunnerAirstrikes[i];
+      strike.timer--;
+      if (strike.timer <= 0) {
+        state.ghosts.forEach(g => {
+          if (g.x > 0 && dist(strike.x, strike.y, g.x, g.y) < 200) {
+            g.hp -= 5; g.isStunned = 120;
+          }
+        });
+        if (boss && dist(strike.x, strike.y, boss.x, boss.y) < 200) boss.hp -= 30;
+
+        state.bullets.forEach(b => {
+          if (!b.isPlayer && dist(strike.x, strike.y, b.x, b.y) < 200) b.life = 0;
+        });
+
+        if (!state.explosions) state.explosions = [];
+        state.explosions.push({ x: strike.x, y: strike.y, radius: 200, life: 15, color: "rgba(255,0,0,1)" });
+
+        state.gunnerAirstrikes.splice(i, 1);
+      }
+    }
+  }
+
+  // Hunter Q: Bẫy Gấu
+  if (player.characterId === "hunter" && state.hunterTraps) {
+    for (let i = state.hunterTraps.length - 1; i >= 0; i--) {
+      let trap = state.hunterTraps[i];
+      let triggered = false;
+      state.ghosts.forEach(g => {
+        if (!triggered && g.x > 0 && dist(trap.x, trap.y, g.x, g.y) < 40) {
+          g.isStunned = 180;
+          g.hp -= 2;
+          triggered = true;
+        }
+      });
+      if (triggered) state.hunterTraps.splice(i, 1);
+    }
+  }
+
+  // ENGINEER Q: Turret
   if (player.characterId === "engineer" && state.engineerTurrets) {
     state.engineerTurrets.forEach((t) => {
       t.life--;
-
-      // Auto fire
       if ((state.frameCount || 0) % 20 === 0) {
         let target = null;
         let nearest = 9999;
-
         if (boss) {
           let d = dist(t.x, t.y, boss.x, boss.y);
-          if (d < nearest) {
-            nearest = d;
-            target = boss;
-          }
+          if (d < nearest) { nearest = d; target = boss; }
         }
-
         state.ghosts.forEach((g) => {
           if (g.x > 0 && g.isStunned <= 0) {
             let d = dist(t.x, t.y, g.x, g.y);
-            if (d < nearest) {
-              nearest = d;
-              target = g;
-            }
+            if (d < nearest) { nearest = d; target = g; }
           }
         });
-
-        if (target) {
-          spawnBullet(t.x, t.y, target.x, target.y, true);
-        }
+        if (target) spawnBullet(t.x, t.y, target.x, target.y, true);
       }
     });
-
-    // remove turret hết hạn
     state.engineerTurrets = state.engineerTurrets.filter((t) => t.life > 0);
   }
+
   // --- Bullet update & collision ---
   updateBullets(ctx, canvas, changeStateFn, isTimeFrozen);
+
+  // Kiểm tra Boss chết do sát thương diện rộng
+  if (boss && boss.hp <= 0 && !state._bossKilled) {
+    state.player.coins = (state.player.coins || 0) + 100;
+    state._bossKilled = true;
+  }
 
   if (state._bossKilled) {
     state._bossKilled = false;
@@ -526,6 +501,16 @@ export function update(ctx, canvas, changeStateFn) {
 
   // --- Ghost update ---
   let activeGhosts = 0;
+
+  // DỌN DẸP QUÁI CHẾT (Đảm bảo quái chết trong vùng bão tuyết bị xóa sổ ngay)
+  for (let i = state.ghosts.length - 1; i >= 0; i--) {
+    let g = state.ghosts[i];
+    if (g.hp !== undefined && g.hp <= 0 && g.x > 0) {
+      state.player.coins = (state.player.coins || 0) + 2;
+      state.ghosts.splice(i, 1);
+    }
+  }
+
   for (let g of state.ghosts) {
     if (!isTimeFrozen) {
       let exactIndex = g.timer * g.speedRate;
@@ -536,8 +521,7 @@ export function update(ctx, canvas, changeStateFn) {
         if (g.isStunned > 0) {
           g.isStunned--;
         } else {
-          let prevX = g.x,
-            prevY = g.y;
+          let prevX = g.x, prevY = g.y;
           let action1 = g.record[idx1];
 
           if (idx1 + 1 < g.record.length) {
@@ -546,8 +530,7 @@ export function update(ctx, canvas, changeStateFn) {
             g.x = action1[0] + (action2[0] - action1[0]) * t;
             g.y = action1[1] + (action2[1] - action1[1]) * t;
           } else {
-            g.x = action1[0];
-            g.y = action1[1];
+            g.x = action1[0]; g.y = action1[1];
           }
 
           g.historyPath.push({ x: g.x, y: g.y });
@@ -559,20 +542,16 @@ export function update(ctx, canvas, changeStateFn) {
           g.lastIdx = idx1;
 
           let ghostIsDashing = dist(g.x, g.y, prevX, prevY) > 8 * g.speedRate;
-          if (
-            !isInvulnerable &&
-            !ghostIsDashing &&
-            dist(g.x, g.y, player.x, player.y) < player.radius + g.radius - 2
-          ) {
+          if (!isInvulnerable && !ghostIsDashing && dist(g.x, g.y, player.x, player.y) < player.radius + g.radius - 2) {
             playerTakeDamage(ctx, canvas, changeStateFn);
           }
+          g.timer++;
         }
       } else {
         g.historyPath.shift();
-        g.x = -100;
-        g.y = -100;
+        g.x = -100; g.y = -100;
+        g.timer++;
       }
-      g.timer++;
     } else {
       if (g.x > 0) activeGhosts++;
     }
@@ -586,8 +565,7 @@ export function update(ctx, canvas, changeStateFn) {
     UI.ghosts.innerText = `Quái: ${activeGhosts}`;
   }
 
-  document.getElementById("coins-count").innerText =
-    `Tiền: ${state.player?.coins || 0}`;
+  document.getElementById("coins-count").innerText = `Tiền: ${state.player?.coins || 0}`;
 
   if (!state.isBossLevel && state.frameCount >= state.maxFramesToSurvive) {
     return "STAGE_CLEAR";
@@ -596,15 +574,9 @@ export function update(ctx, canvas, changeStateFn) {
   state.frameCount++;
   if (!state.isBossLevel && state.frameCount % FPS === 0) {
     state.scoreTime++;
-    let maxMins = Math.floor(state.maxFramesToSurvive / FPS / 60)
-      .toString()
-      .padStart(2, "0");
-    let maxSecs = Math.floor((state.maxFramesToSurvive / FPS) % 60)
-      .toString()
-      .padStart(2, "0");
-    let mins = Math.floor(state.scoreTime / 60)
-      .toString()
-      .padStart(2, "0");
+    let maxMins = Math.floor(state.maxFramesToSurvive / FPS / 60).toString().padStart(2, "0");
+    let maxSecs = Math.floor((state.maxFramesToSurvive / FPS) % 60).toString().padStart(2, "0");
+    let mins = Math.floor(state.scoreTime / 60).toString().padStart(2, "0");
     let secs = (state.scoreTime % 60).toString().padStart(2, "0");
     UI.timer.innerText = `${mins}:${secs} / ${maxMins}:${maxSecs}`;
   }

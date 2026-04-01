@@ -172,33 +172,77 @@ function triggerSkill(key, canvas, changeStateFn) {
     }
   } else if (char === "hunter") {
     if (key === "q") {
-      state.ghosts.forEach((g) => {
-        if (dist(state.player.x, state.player.y, g.x, g.y) < 100) {
+      if (!state.hunterTraps) state.hunterTraps = [];
+      state.hunterTraps.push({ x: state.player.x, y: state.player.y });
+    }
+    if (key === "e") {
+      state.activeBuffs.e = 3 * FPS; // Bật vùng từ trường trong 5s
+    }
+    if (key === "r") {
+      let prevLen = state.bullets.length;
+      spawnBullet(state.player.x, state.player.y, state.mouse.x, state.mouse.y, true);
+      if (state.bullets.length > prevLen) {
+        let b = state.bullets[state.bullets.length - 1];
+        b.radius = 40; // Phi tiêu siêu to
+        b.damage = 3;
+        b.pierce = true; // Xuyên thấu
+        b.vx *= 0.5; // Bay chậm lại để càn quét
+        b.vy *= 0.5;
+        b.life = 120; // Tồn tại lâu
+        b.isShuriken = true; // Flag vẽ hình xoắn ốc
+      }
+    }
+  } else if (char === "frost") {
+    if (key === "q") {
+      state.activeBuffs.q = 2 * FPS; // Đóng băng bản thân 2s
+    }
+    if (key === "e") {
+      state.player.shield = 1;
+      updateHealthUI();
+      state.activeBuffs.e = 10 * FPS; // Giáp tồn tại chờ nổ trong 10s
+    }
+    if (key === "r") {
+      state.activeBuffs.r = 5 * FPS; // Bão tuyết quanh người
+    }
+  } else if (char === "gunner") {
+    if (key === "q") {
+      // Tia Laser điện từ xuyên thấu tức thời (Hitscan)
+      state.activeBuffs.q = 15; // Hoạt ảnh 15 frame
+      let angle = Math.atan2(state.mouse.y - state.player.y, state.mouse.x - state.player.x);
+      state.gunnerLaser = { x: state.player.x, y: state.player.y, angle: angle };
+
+      // Tính sát thương tức thời lên đường thẳng
+      let p1 = { x: state.player.x, y: state.player.y };
+      let p2 = { x: state.player.x + Math.cos(angle) * 1000, y: state.player.y + Math.sin(angle) * 1000 };
+
+      // Hàm check giao điểm đường thẳng và hình tròn
+      const distToLine = (p, v, w) => {
+        let l2 = dist(v.x, v.y, w.x, w.y) ** 2;
+        if (l2 === 0) return dist(p.x, p.y, v.x, v.y);
+        let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+        t = Math.max(0, Math.min(1, t));
+        return dist(p.x, p.y, v.x + t * (w.x - v.x), v.y + t * (w.y - v.y));
+      };
+
+      state.ghosts.forEach(g => {
+        if (g.x > 0 && distToLine({ x: g.x, y: g.y }, p1, p2) < g.radius + 15) {
+          g.hp -= 3;
           g.isStunned = 60;
         }
       });
-    }
-    if (key === "e") state.activeBuffs.e = 4 * FPS;
-    if (key === "r") state.activeBuffs.r = 6 * FPS;
-  } else if (char === "frost") {
-    if (key === "q") {
-      state.ghosts.forEach((g) => (g.isStunned = 90));
-    }
-    if (key === "e") state.player.shield = 2;
-    if (key === "r") state.activeBuffs.r = 5 * FPS;
-  } else if (char === "gunner") {
-    if (key === "q") state.activeBuffs.q = 3 * FPS;
-    if (key === "e") state.activeBuffs.e = 5 * FPS;
-    if (key === "r") {
-      for (let i = 0; i < Math.PI * 2; i += Math.PI / 20) {
-        spawnBullet(
-          state.player.x,
-          state.player.y,
-          state.player.x + Math.cos(i),
-          state.player.y + Math.sin(i),
-          true,
-        );
+      if (state.boss && distToLine({ x: state.boss.x, y: state.boss.y }, p1, p2) < state.boss.radius + 15) {
+        state.boss.hp -= 15;
       }
+    }
+    if (key === "e") {
+      // Đặt Mìn Không Gian
+      if (!state.gunnerMines) state.gunnerMines = [];
+      state.gunnerMines.push({ x: state.player.x, y: state.player.y });
+    }
+    if (key === "r") {
+      // Pháo kích
+      if (!state.gunnerAirstrikes) state.gunnerAirstrikes = [];
+      state.gunnerAirstrikes.push({ x: state.mouse.x, y: state.mouse.y, timer: 1 * FPS }); // Nổ sau 1s
     }
   } else if (char === "timekeeper") {
     if (key === "q") state.activeBuffs.q = 4 * FPS;

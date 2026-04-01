@@ -2,8 +2,12 @@ import { state } from "../state.js";
 import { FPS } from "../config.js";
 import { dist } from "../utils.js";
 import { UI, updateHealthUI, updateXPUI } from "../ui.js";
-import { playSound } from "./audio.js";
+import { playSound } from "./audio.js"; // IMPORT ÂM THANH VÀO ĐÂY
 
+/**
+ * Xử lý khi player nhận sát thương.
+ * Tính đến grace period, dash, shield.
+ */
 export function playerTakeDamage(ctx, canvas, changeStateFn) {
   if (state.player.gracePeriod > 0 || state.player.dashTimeLeft > 0) return;
 
@@ -16,7 +20,8 @@ export function playerTakeDamage(ctx, canvas, changeStateFn) {
     (buffs.q > 0 &&
       (state.player.characterId === "warden" ||
         state.player.characterId === "assassin" ||
-        state.player.characterId === "spirit"));
+        state.player.characterId === "spirit" ||
+        state.player.characterId === "frost")); // FROST Q BẤT TỬ!
 
   if (isInvulnSkill) {
     return;
@@ -26,6 +31,16 @@ export function playerTakeDamage(ctx, canvas, changeStateFn) {
     state.player.shield--;
     state.player.shieldRegenTimer = 5 * FPS;
     playSound("damage"); // Tiếng vỡ khiên
+
+    // NẾU GIÁP CỦA FROST VỠ -> BẮN RA TIA BĂNG
+    if (state.player.characterId === "frost" && buffs.e > 0) {
+      import("../entities.js").then(module => {
+        for (let i = 0; i < Math.PI * 2; i += Math.PI / 4) {
+          module.spawnBullet(state.player.x, state.player.y, state.player.x + Math.cos(i), state.player.y + Math.sin(i), true);
+        }
+      });
+      state.activeBuffs.e = 0; // Hủy buff sau khi nổ
+    }
   } else {
     state.player.hp--;
     playSound("damage"); // Tiếng mất máu
@@ -83,12 +98,13 @@ export function updateBullets(
     player.gracePeriod > 0 || player.dashTimeLeft > 0 || isInvulnSkill;
   let isSummonerQ = player.characterId === "summoner" && buffs.q > 0;
 
-  // Lấy ra flag làm chậm của Oracle Q
+  // Lấy ra cờ để xử lý làm chậm đạn
   let isOracleQ = player.characterId === "oracle" && buffs.q > 0;
+  let isFrostR = player.characterId === "frost" && buffs.r > 0;
+  let isHunterE = player.characterId === "hunter" && buffs.e > 0;
 
   for (let i = bullets.length - 1; i >= 0; i--) {
     let b = bullets[i];
-    //Spirit E đẩy đạn địch ra xa player
     let isSpiritE = player.characterId === "spirit" && buffs.e > 0;
 
     if (isSpiritE && !b.isPlayer) {
@@ -102,6 +118,7 @@ export function updateBullets(
         b.vy = Math.sin(angle) * speed;
       }
     }
+
     // ===== ENGINEER SHIELD =====
     let isEngineerR = player.characterId === "engineer" && buffs.r > 0;
     if (isEngineerR) {
@@ -116,13 +133,23 @@ export function updateBullets(
       // Giữ nguyên vị trí
     } else {
       let speedMult = (!b.isPlayer && isOracleQ) ? 0.3 : 1;
+
+      // FROST R: Bão Tuyết làm chậm 80% đạn địch bay vào
+      if (!b.isPlayer && isFrostR && dist(b.x, b.y, player.x, player.y) < 200) {
+        speedMult = 0.2;
+      }
+
+      // HUNTER E: Vùng làm chậm 80% đạn địch bay vào
+      if (!b.isPlayer && isHunterE && dist(b.x, b.y, player.x, player.y) < 300) {
+        speedMult = 0.2;
+      }
+
       b.x += b.vx * speedMult;
       b.y += b.vy * speedMult;
 
-      // SỬA LỖI ORACLE Q: Nếu đạn bị làm bay chậm đi, tuổi thọ của đạn cũng phải 
-      // giảm từ từ lại tương ứng, nếu không đạn sẽ biến mất khi chưa tới đích.
-      if (!b.isPlayer && isOracleQ) {
-        b.life -= 0.3;
+      // Bù trừ life như Oracle Q
+      if (!b.isPlayer && speedMult < 1) {
+        b.life -= speedMult;
       } else {
         b.life--;
       }
@@ -166,13 +193,12 @@ export function updateBullets(
         boss.hp -= b.damage || 1;
         UI.bossHp.style.width = Math.max(0, (boss.hp / boss.maxHp) * 100) + "%";
 
-        // Scout Mythical: Hưng phấn giảm hồi chiêu khi bắn trúng Boss
+        // Scout Mythical: Hưng phấn giảm hồi chiêu
         if (state.player.characterId === "scout" && buffs.r > 0) {
           if (state.skillsCD.q > 0) state.skillsCD.q = Math.max(0, state.skillsCD.q - 0.5 * FPS);
           if (state.skillsCD.e > 0) state.skillsCD.e = Math.max(0, state.skillsCD.e - 0.5 * FPS);
         }
 
-        // Sniper piercing shot stops at Boss for balance
         bullets.splice(i, 1);
         if (boss.hp <= 0) {
           state.player.coins = (state.player.coins || 0) + 100;
@@ -201,25 +227,25 @@ export function updateBullets(
           }
           hitGhost = true;
 
-          // Scout Mythical: Hưng phấn giảm hồi chiêu khi bắn trúng Quái
+          // Scout Mythical: Hưng phấn giảm hồi chiêu
           if (state.player.characterId === "scout" && buffs.r > 0) {
             if (state.skillsCD.q > 0) state.skillsCD.q = Math.max(0, state.skillsCD.q - 0.5 * FPS);
             if (state.skillsCD.e > 0) state.skillsCD.e = Math.max(0, state.skillsCD.e - 0.5 * FPS);
           }
 
-          // Piercing bullets do not get destroyed by ghosts
+          // Piercing bullets
           if (!b.pierce) {
             if (b.bounces > 0) {
               b.bounces--;
               let angle = Math.atan2(b.vy, b.vx);
-              angle += Math.PI + (Math.random() * 1 - 0.5); // bounce randomly off ghost
+              angle += Math.PI + (Math.random() * 1 - 0.5);
               let speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
               b.vx = Math.cos(angle) * speed;
               b.vy = Math.sin(angle) * speed;
-              hitGhost = false; // Don't splice yet since it bounced
+              hitGhost = false;
             }
           } else {
-            hitGhost = false; // Pierce active, don't splice
+            hitGhost = false;
           }
           break;
         }
@@ -234,7 +260,6 @@ export function updateBullets(
         isSummonerQ &&
         dist(b.x, b.y, player.x, player.y) < player.radius + 40
       ) {
-        // Đạn địch bị phá hủy bởi khiên quay của Summoner
         bullets.splice(i, 1);
         continue;
       }

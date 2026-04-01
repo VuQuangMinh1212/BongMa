@@ -564,9 +564,9 @@ export const CHARACTERS = [
     rarity: "rare",
     baseStats: { hp: 4, speed: 5.5, fireRate: 14, multiShot: 2, bounces: 0 },
     skills: [
-      { key: "q", name: "Bẫy", desc: "Đặt bẫy damage.", cooldown: 10 },
-      { key: "e", name: "Truy Dấu", desc: "Tăng dmg.", cooldown: 12 },
-      { key: "r", name: "Săn Đêm", desc: "Buff crit.", cooldown: 45, initialCooldown: 30 },
+      { key: "q", name: "Bẫy Gấu", desc: "Đặt 1 bẫy tại chỗ. Kẻ địch dẫm phải sẽ bị trói 3s và mất máu.", cooldown: 8 },
+      { key: "e", name: "Đánh Dấu", desc: "Tạo ra 1 vùng từ trường bất tử trong 3s.", cooldown: 12 },
+      { key: "r", name: "Lốc Xoáy Phi Tiêu", desc: "Phóng 1 phi tiêu khổng lồ xuyên thấu càn quét mọi thứ trên đường bay.", cooldown: 40, initialCooldown: 15 },
     ],
   },
   {
@@ -576,9 +576,9 @@ export const CHARACTERS = [
     rarity: "rare",
     baseStats: { hp: 4, speed: 4.8, fireRate: 13, multiShot: 2, bounces: 0 },
     skills: [
-      { key: "q", name: "Freeze", desc: "Đóng băng.", cooldown: 10 },
-      { key: "e", name: "Băng Giáp", desc: "Shield nhỏ.", cooldown: 12 },
-      { key: "r", name: "Bão Tuyết", desc: "Slow map.", cooldown: 50, initialCooldown: 25 },
+      { key: "q", name: "Đóng Băng Nguyên Tử", desc: "Tự phong ấn bản thân 2 giây. Bất động, Miễn nhiễm mọi sát thương và đóng băng quái xung quanh.", cooldown: 12 },
+      { key: "e", name: "Giáp Băng Nổ", desc: "Tạo 1 khiên chặn đòn. Khi khiên vỡ, phóng ra 8 mảnh băng sát thương xung quanh.", cooldown: 15 },
+      { key: "r", name: "Tâm Bão", desc: "Tạo 1 vùng bão tuyết khổng lồ bám theo bản thân trong 5s, liên tục làm chậm quái.", cooldown: 50, initialCooldown: 20 },
     ],
   },
   {
@@ -588,9 +588,9 @@ export const CHARACTERS = [
     rarity: "rare",
     baseStats: { hp: 4, speed: 5, fireRate: 10, multiShot: 3, bounces: 0 },
     skills: [
-      { key: "q", name: "Burst", desc: "Bắn nhanh.", cooldown: 8 },
-      { key: "e", name: "Overheat", desc: "Spam đạn.", cooldown: 12 },
-      { key: "r", name: "Bullet Hell", desc: "Spam toàn màn.", cooldown: 50, initialCooldown: 30 },
+      { key: "q", name: "Súng Điện Từ", desc: "Bắn ngay lập tức 1 tia Laser xuyên thấu cực mạnh theo hướng chuột.", cooldown: 10 },
+      { key: "e", name: "Mìn Không Gian", desc: "Đặt 1 quả mìn. Tự phát nổ diện rộng khi có quái hoặc Boss bước vào.", cooldown: 10 },
+      { key: "r", name: "Pháo Kích", desc: "Gọi 1 đợt không kích rải thảm xuống vị trí trỏ chuột sau 1 giây.", cooldown: 40, initialCooldown: 15 },
     ],
   },
 

@@ -25,14 +25,13 @@ export function draw(ctx, canvas) {
 
   // --- Visual Kỹ Năng ---
 
-  // Oracle Visuals (SỬA LỖI TRỰC QUAN HÓA KỸ NĂNG)
+  // Oracle Visuals
   if (player.characterId === "oracle") {
     if (buffs.q > 0) {
-      ctx.fillStyle = "rgba(255, 200, 0, 0.08)"; // Hiệu ứng màn hình vàng nhẹ khi làm chậm đạn
+      ctx.fillStyle = "rgba(255, 200, 0, 0.08)";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
     if (buffs.r > 0) {
-      // Hiệu ứng vòng sáng định mệnh quanh người
       ctx.beginPath();
       ctx.arc(player.x, player.y, player.radius + 12, 0, Math.PI * 2);
       ctx.strokeStyle = "rgba(255, 100, 255, 0.8)";
@@ -43,16 +42,15 @@ export function draw(ctx, canvas) {
     }
   }
 
-  // Phantoms (Dư ảnh của Oracle E) - SỬA LỖI: Lúc trước tạo mà không vẽ ra!
+  // Phantoms (Dư ảnh của Oracle E)
   if (state.phantoms) {
     state.phantoms.forEach((p) => {
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
       ctx.fillStyle = p.color;
-      ctx.globalAlpha = p.life / (2 * 60); // Mờ dần theo thời gian (2s)
+      ctx.globalAlpha = p.life / (2 * 60);
       ctx.fill();
       ctx.globalAlpha = 1.0;
-      // Viền mờ cho đẹp
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.radius + 2, 0, Math.PI * 2);
       ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
@@ -85,13 +83,7 @@ export function draw(ctx, canvas) {
     }
     if (buffs.q > 0) {
       ctx.beginPath();
-      ctx.arc(
-        player.x,
-        player.y,
-        player.radius + 6 + Math.random() * 4,
-        0,
-        Math.PI * 2,
-      );
+      ctx.arc(player.x, player.y, player.radius + 6 + Math.random() * 4, 0, Math.PI * 2);
       ctx.strokeStyle = "rgba(255, 0, 0, 0.8)";
       ctx.lineWidth = 3;
       ctx.stroke();
@@ -135,7 +127,6 @@ export function draw(ctx, canvas) {
 
   if (player.characterId === "scout") {
     if (buffs.q > 0) {
-      // Hiệu ứng chém quanh người
       ctx.beginPath();
       ctx.arc(player.x, player.y, 100, 0, Math.PI * 2);
       ctx.strokeStyle = `rgba(255, 255, 255, ${buffs.q / 15})`;
@@ -143,27 +134,23 @@ export function draw(ctx, canvas) {
       ctx.stroke();
     }
     if (buffs.e > 0 && player.grappleTarget) {
-      // Dây móc câu
       ctx.beginPath();
       ctx.moveTo(player.x, player.y);
       ctx.lineTo(player.grappleTarget.x, player.grappleTarget.y);
       ctx.strokeStyle = "rgba(150, 150, 150, 0.8)";
       ctx.lineWidth = 2;
       ctx.stroke();
-      // Điểm neo
       ctx.beginPath();
       ctx.arc(player.grappleTarget.x, player.grappleTarget.y, 5, 0, Math.PI * 2);
       ctx.fillStyle = "#aaa";
       ctx.fill();
     }
     if (buffs.r > 0) {
-      // Hiệu ứng máu sôi sục Hưng Phấn
       ctx.beginPath();
       ctx.arc(player.x, player.y, player.radius + 10 + Math.sin(state.frameCount * 0.2) * 5, 0, Math.PI * 2);
       ctx.strokeStyle = "rgba(255, 50, 50, 0.8)";
       ctx.lineWidth = 3;
       ctx.stroke();
-      // Màn hình đỏ rực nhẹ
       ctx.fillStyle = "rgba(255, 0, 0, 0.05)";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
@@ -240,11 +227,6 @@ export function draw(ctx, canvas) {
     ctx.fill();
   }
 
-  if (player.characterId === "frost" && buffs.r > 0) {
-    ctx.fillStyle = "rgba(120, 200, 255, 0.15)";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  }
-
   if (player.characterId === "void" && buffs.r > 0) {
     ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -259,6 +241,7 @@ export function draw(ctx, canvas) {
     ctx.fillStyle = "rgba(255, 0, 0, 0.18)";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
   }
+
   if (player.characterId === "engineer" && buffs.r > 0) {
     ctx.beginPath();
     ctx.arc(player.x, player.y, 120, 0, Math.PI * 2);
@@ -286,7 +269,6 @@ export function draw(ctx, canvas) {
   if (player.characterId === "spirit" && buffs.r > 0) {
     for (let i = 0; i < 10; i++) {
       let x = Math.random() * canvas.width;
-
       ctx.beginPath();
       ctx.moveTo(x, 0);
       ctx.lineTo(x + (Math.random() - 0.5) * 50, canvas.height);
@@ -305,6 +287,127 @@ export function draw(ctx, canvas) {
     ctx.strokeStyle = "rgba(0,255,100,0.6)";
     ctx.stroke();
   }
+
+  // ===== FROST, GUNNER, HUNTER VISUALS =====
+  if (player.characterId === "frost") {
+    if (buffs.q > 0) {
+      // Khối băng phong ấn bản thân
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.radius + 15, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0, 200, 255, 0.6)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+
+      // Hào quang lạnh lẽo xung quanh
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, 100, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0, 200, 255, 0.1)";
+      ctx.fill();
+    }
+    if (buffs.r > 0) {
+      // Bão tuyết
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, 200, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(100, 200, 255, 0.15)";
+      ctx.fill();
+      ctx.strokeStyle = "rgba(200, 255, 255, 0.5)";
+      ctx.setLineDash([10, 15]);
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  if (player.characterId === "gunner") {
+    // Q: Tia Laser
+    if (buffs.q > 0 && state.gunnerLaser) {
+      ctx.beginPath();
+      ctx.moveTo(state.gunnerLaser.x, state.gunnerLaser.y);
+      ctx.lineTo(state.gunnerLaser.x + Math.cos(state.gunnerLaser.angle) * 2000, state.gunnerLaser.y + Math.sin(state.gunnerLaser.angle) * 2000);
+      ctx.strokeStyle = `rgba(0, 255, 255, ${buffs.q / 15})`;
+      ctx.lineWidth = 15;
+      ctx.stroke();
+      ctx.strokeStyle = `rgba(255, 255, 255, ${buffs.q / 15})`;
+      ctx.lineWidth = 5;
+      ctx.stroke();
+    }
+    // E: Mìn Không Gian
+    if (state.gunnerMines) {
+      state.gunnerMines.forEach(m => {
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, 10, 0, Math.PI * 2);
+        ctx.fillStyle = "#333";
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = (state.frameCount % 20 < 10) ? "#ff0000" : "#550000"; // Nhấp nháy đỏ
+        ctx.fill();
+      });
+    }
+    // R: Pháo Kích (Cảnh báo đỏ)
+    if (state.gunnerAirstrikes) {
+      state.gunnerAirstrikes.forEach(strike => {
+        let maxT = 1 * 60; // 1s
+        let progress = 1 - (strike.timer / maxT);
+        ctx.beginPath();
+        ctx.arc(strike.x, strike.y, 200, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(255, 0, 0, 0.5)";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(strike.x, strike.y, 200 * progress, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(255, 0, 0, 0.2)";
+        ctx.fill();
+      });
+    }
+  }
+
+  // Hiệu ứng cháy nổ chung (Mìn, Pháo kích)
+  if (state.explosions) {
+    for (let i = state.explosions.length - 1; i >= 0; i--) {
+      let exp = state.explosions[i];
+      ctx.beginPath();
+      ctx.arc(exp.x, exp.y, exp.radius, 0, Math.PI * 2);
+      ctx.fillStyle = exp.color;
+      ctx.globalAlpha = exp.life / 15;
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+      exp.life--;
+      if (exp.life <= 0) state.explosions.splice(i, 1);
+    }
+  }
+
+  if (player.characterId === "hunter") {
+    // Vòng sáng chỉ bật khi E đang tác dụng
+    if (buffs.e > 0) {
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, 300, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(255, 100, 0, 0.6)";
+      ctx.lineWidth = 3;
+      ctx.setLineDash([10, 10]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = "rgba(255, 100, 0, 0.05)";
+      ctx.fill();
+    }
+
+    // Q: Bẫy
+    if (state.hunterTraps) {
+      state.hunterTraps.forEach(trap => {
+        ctx.beginPath();
+        ctx.arc(trap.x, trap.y, 15, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(139, 69, 19, 0.8)"; // Màu nâu
+        ctx.setLineDash([5, 5]);
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        ctx.setLineDash([]);
+      });
+    }
+  }
+
   // --- Boss ---
   if (boss) {
     const phase = boss.hp <= boss.maxHp / 2 ? 1 : 0;
@@ -313,19 +416,11 @@ export function draw(ctx, canvas) {
       end: boss.color,
     };
 
-    // ===== lerp color =====
     function lerpColor(a, b, t) {
       const ah = parseInt(a.replace("#", ""), 16);
       const bh = parseInt(b.replace("#", ""), 16);
-
-      const ar = (ah >> 16) & 255,
-        ag = (ah >> 8) & 255,
-        ab = ah & 255;
-
-      const br = (bh >> 16) & 255,
-        bg = (bh >> 8) & 255,
-        bb = bh & 255;
-
+      const ar = (ah >> 16) & 255, ag = (ah >> 8) & 255, ab = ah & 255;
+      const br = (bh >> 16) & 255, bg = (bh >> 8) & 255, bb = bh & 255;
       return `rgb(${(ar + t * (br - ar)) | 0},${(ag + t * (bg - ag)) | 0},${(ab + t * (bb - ab)) | 0})`;
     }
 
@@ -334,13 +429,9 @@ export function draw(ctx, canvas) {
 
     ctx.save();
     ctx.translate(boss.x, boss.y);
-
-    // ===== Rotate (always on) =====
     ctx.rotate(state.frameCount * 0.01);
 
     ctx.beginPath();
-
-    // ===== Shape =====
     switch (boss.shape) {
       case "triangle":
         for (let i = 0; i < 3; i++) {
@@ -351,11 +442,9 @@ export function draw(ctx, canvas) {
         }
         ctx.closePath();
         break;
-
       case "square":
         ctx.rect(-boss.radius, -boss.radius, boss.radius * 2, boss.radius * 2);
         break;
-
       case "hexagon":
         for (let i = 0; i < 6; i++) {
           let a = i * ((Math.PI * 2) / 6);
@@ -365,7 +454,6 @@ export function draw(ctx, canvas) {
         }
         ctx.closePath();
         break;
-
       case "star":
         for (let i = 0; i < 10; i++) {
           let r = i % 2 === 0 ? boss.radius : boss.radius / 2;
@@ -376,31 +464,23 @@ export function draw(ctx, canvas) {
         }
         ctx.closePath();
         break;
-
       default:
         ctx.arc(0, 0, boss.radius, 0, Math.PI * 2);
     }
 
-    // ===== Fill =====
     ctx.fillStyle = "#111";
     ctx.fill();
 
-    // ===== Rage mode (LOW HP) =====
     const isRage = boss.hp < boss.maxHp * 0.5;
-
     ctx.lineWidth = isRage ? 8 : 4;
     ctx.strokeStyle = color;
-
     ctx.shadowBlur = isRage ? 40 : 25;
     ctx.shadowColor = color;
-
     ctx.stroke();
     ctx.shadowBlur = 0;
 
-    // ===== Core =====
     ctx.fillStyle = color;
     ctx.fillRect(-8, -8, 16, 16);
-
     ctx.restore();
   }
 
@@ -408,7 +488,7 @@ export function draw(ctx, canvas) {
   for (let g of ghosts) {
     if (g.x < 0) continue;
     let isDashing =
-      g.historyPath.length > 2 &&
+      g.historyPath && g.historyPath.length > 2 &&
       dist(
         g.historyPath[g.historyPath.length - 1].x,
         g.historyPath[g.historyPath.length - 1].y,
@@ -417,7 +497,7 @@ export function draw(ctx, canvas) {
       ) >
       8 * g.speedRate;
 
-    if (g.historyPath.length > 0 && g.isStunned <= 0) {
+    if (g.historyPath && g.historyPath.length > 0 && g.isStunned <= 0) {
       ctx.beginPath();
       ctx.moveTo(g.historyPath[0].x, g.historyPath[0].y);
       for (let p of g.historyPath) ctx.lineTo(p.x, p.y);
@@ -432,7 +512,6 @@ export function draw(ctx, canvas) {
     ctx.beginPath();
     ctx.arc(g.x, g.y, g.radius, 0, Math.PI * 2);
 
-    // Đổi màu quái nếu bị Mage đóng băng
     if (player.characterId === "mage" && buffs.r > 0) ctx.fillStyle = "#00aaff";
     else ctx.fillStyle = g.isStunned > 0 ? "#333" : "#ff4444";
 
@@ -446,28 +525,50 @@ export function draw(ctx, canvas) {
 
   // --- Bullets ---
   let isScoutQ = player.characterId === "scout" && buffs.q > 0;
+  let isFrostR = player.characterId === "frost" && buffs.r > 0;
 
   for (let b of bullets) {
-    ctx.beginPath();
-    let drawRadius = b.radius;
-    // Phóng to đạn địch lên xíu khi bật Scan
-    if (!b.isPlayer && isScoutQ) drawRadius += 3;
+    if (b.isShuriken) {
+      // Vẽ phi tiêu / lốc xoáy cho Hunter R
+      ctx.save();
+      ctx.translate(b.x, b.y);
+      ctx.rotate(state.frameCount * 0.3); // Xoay vòng
+      ctx.beginPath();
+      ctx.moveTo(-b.radius, 0); ctx.lineTo(b.radius, 0);
+      ctx.moveTo(0, -b.radius); ctx.lineTo(0, b.radius);
+      ctx.strokeStyle = "#00ffcc";
+      ctx.lineWidth = 8;
+      ctx.stroke();
+      ctx.restore();
+    } else {
+      ctx.beginPath();
+      let drawRadius = b.radius;
+      if (!b.isPlayer && isScoutQ) drawRadius += 3;
 
-    ctx.arc(b.x, b.y, drawRadius, 0, Math.PI * 2);
-    if (b.isPlayer) ctx.fillStyle = "#00ffcc";
-    else {
-      ctx.fillStyle = b.style === 1 ? "#ff00ff" : "#ff4444";
-      // Highlight rực rỡ đạn địch nếu Scout bật Q
-      if (isScoutQ) {
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = "#ff0000";
-        ctx.fillStyle = "#ffaaaa";
+      ctx.arc(b.x, b.y, drawRadius, 0, Math.PI * 2);
+      if (b.isPlayer) {
+        ctx.fillStyle = "#00ffcc";
+      } else {
+        ctx.fillStyle = b.style === 1 ? "#ff00ff" : "#ff4444";
+
+        // FROST R: Highlight nếu đạn địch đang ở trong vùng Bão tuyết sẽ bị đổi màu lạnh
+        if (isFrostR && dist(b.x, b.y, player.x, player.y) < 200) {
+          ctx.fillStyle = "#00ffff"; // Chuyển màu đạn địch thành xanh băng
+          ctx.shadowBlur = 10;
+          ctx.shadowColor = "#00ffff";
+        }
+
+        if (isScoutQ) {
+          ctx.shadowBlur = 15;
+          ctx.shadowColor = "#ff0000";
+          ctx.fillStyle = "#ffaaaa";
+        }
       }
+      ctx.fill();
+      ctx.shadowBlur = 0; // reset shadow
     }
-    ctx.fill();
-    ctx.shadowBlur = 0; // reset shadow
   }
-  //Druid orbs
+
   if (state.druidOrbs && player.characterId === "druid" && buffs.q > 0) {
     state.druidOrbs.forEach((o) => {
       ctx.beginPath();
@@ -479,7 +580,7 @@ export function draw(ctx, canvas) {
       ctx.shadowBlur = 0;
     });
   }
-  // ===== ENGINEER TURRET =====
+
   if (state.engineerTurrets) {
     state.engineerTurrets.forEach((t) => {
       ctx.beginPath();
@@ -491,11 +592,12 @@ export function draw(ctx, canvas) {
       ctx.shadowBlur = 0;
     });
   }
+
   // --- Player ---
   let isInvulnSkill =
     (buffs.e > 0 &&
       (player.characterId === "tank" || player.characterId === "ghost")) ||
-    (buffs.q > 0 && player.characterId === "warden");
+    (buffs.q > 0 && (player.characterId === "warden" || player.characterId === "frost"));
 
   if (player.dashTimeLeft > 0 || isInvulnSkill) {
     ctx.beginPath();
