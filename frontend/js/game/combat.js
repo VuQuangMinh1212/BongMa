@@ -87,6 +87,9 @@ export function updateBullets(
     player.gracePeriod > 0 || player.dashTimeLeft > 0 || isInvulnSkill;
   let isSummonerQ = player.characterId === "summoner" && buffs.q > 0;
 
+  // Lấy ra flag làm chậm của Oracle Q
+  let isOracleQ = player.characterId === "oracle" && buffs.q > 0;
+
   for (let i = bullets.length - 1; i >= 0; i--) {
     let b = bullets[i];
     //Spirit E đẩy đạn địch ra xa player
@@ -111,13 +114,22 @@ export function updateBullets(
         continue;
       }
     }
+
     // Đạn địch bị đóng băng
     if (!b.isPlayer && isTimeFrozen) {
       // Giữ nguyên vị trí
     } else {
-      b.x += b.vx;
-      b.y += b.vy;
-      b.life--;
+      let speedMult = (!b.isPlayer && isOracleQ) ? 0.3 : 1;
+      b.x += b.vx * speedMult;
+      b.y += b.vy * speedMult;
+
+      // SỬA LỖI ORACLE Q: Nếu đạn bị làm bay chậm đi, tuổi thọ của đạn cũng phải 
+      // giảm từ từ lại tương ứng, nếu không đạn sẽ biến mất khi chưa tới đích.
+      if (!b.isPlayer && isOracleQ) {
+        b.life -= 0.3;
+      } else {
+        b.life--;
+      }
     }
 
     // Bounce tường

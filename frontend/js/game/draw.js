@@ -24,6 +24,44 @@ export function draw(ctx, canvas) {
   }
 
   // --- Visual Kỹ Năng ---
+
+  // Oracle Visuals (SỬA LỖI TRỰC QUAN HÓA KỸ NĂNG)
+  if (player.characterId === "oracle") {
+    if (buffs.q > 0) {
+      ctx.fillStyle = "rgba(255, 200, 0, 0.08)"; // Hiệu ứng màn hình vàng nhẹ khi làm chậm đạn
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    if (buffs.r > 0) {
+      // Hiệu ứng vòng sáng định mệnh quanh người
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, player.radius + 12, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(255, 100, 255, 0.8)";
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+  }
+
+  // Phantoms (Dư ảnh của Oracle E) - SỬA LỖI: Lúc trước tạo mà không vẽ ra!
+  if (state.phantoms) {
+    state.phantoms.forEach((p) => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = p.life / (2 * 60); // Mờ dần theo thời gian (2s)
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+      // Viền mờ cho đẹp
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.radius + 2, 0, Math.PI * 2);
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+      ctx.globalAlpha = p.life / (2 * 60);
+      ctx.stroke();
+      ctx.globalAlpha = 1.0;
+    });
+  }
+
   if (player.characterId === "tank" && buffs.r > 0) {
     ctx.beginPath();
     ctx.arc(player.x, player.y, 200 + (15 - buffs.r) * 5, 0, Math.PI * 2);
@@ -289,7 +327,7 @@ export function draw(ctx, canvas) {
         g.historyPath[g.historyPath.length - 2].x,
         g.historyPath[g.historyPath.length - 2].y,
       ) >
-        8 * g.speedRate;
+      8 * g.speedRate;
 
     if (g.historyPath.length > 0 && g.isStunned <= 0) {
       ctx.beginPath();

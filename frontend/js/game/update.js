@@ -11,7 +11,6 @@ export function update(ctx, canvas, changeStateFn) {
   // Khởi tạo dự phòng nếu buff chưa load kịp
   let buffs = activeBuffs || { q: 0, e: 0, r: 0 };
   // ===== NEW CHARACTER BUFF FLAGS =====
-  // ===== NEW CHARACTER BUFF FLAGS =====
   let isBerserkerQ = player.characterId === "berserker" && buffs.q > 0;
   let isBerserkerR = player.characterId === "berserker" && buffs.r > 0;
   let isAssassinE = player.characterId === "assassin" && buffs.e > 0;
@@ -359,11 +358,21 @@ export function update(ctx, canvas, changeStateFn) {
     });
   }
 
-  // Oracle R: Homing bullets function
-  if (isOracleR && state.frame % 3 === 0) {
+  // --- Phantoms update (Oracle E) ---
+  if (state.phantoms) {
+    for (let i = state.phantoms.length - 1; i >= 0; i--) {
+      state.phantoms[i].life--;
+      if (state.phantoms[i].life <= 0) {
+        state.phantoms.splice(i, 1);
+      }
+    }
+  }
+
+  // Oracle R: Homing bullets function (SỬA LỖI ĐẠN ĐUỔI ORACLE R)
+  if (isOracleR && (state.frameCount || 0) % 2 === 0) { // Check nhanh hơn để bẻ lái mượt hơn
     state.bullets.forEach((b) => {
       if (b.isPlayer) {
-        let nearestDist = 300; // Search radius for homing
+        let nearestDist = 400; // SỬA LỖI: Mở rộng phạm vi tìm mục tiêu (300 -> 400)
         let target = null;
         if (boss) {
           let d = dist(b.x, b.y, boss.x, boss.y);
@@ -373,7 +382,9 @@ export function update(ctx, canvas, changeStateFn) {
           }
         }
         state.ghosts.forEach((g) => {
-          if (g.isStunned <= 0 && g.x > 0) {
+          // SỬA LỖI TRỌNG TÂM: Bỏ điều kiện "g.isStunned <= 0". 
+          // Nếu không bỏ, quái đang bị dính đạn (stun) thì đạn bay tới sẽ bỏ mục tiêu đó đi hướng khác, rất giật cục!
+          if (g.x > 0) {
             let d = dist(b.x, b.y, g.x, g.y);
             if (d < nearestDist) {
               nearestDist = d;
@@ -385,11 +396,12 @@ export function update(ctx, canvas, changeStateFn) {
         if (target) {
           let currentAngle = Math.atan2(b.vy, b.vx);
           let targetAngle = Math.atan2(target.y - b.y, target.x - b.x);
-          // Homing strength: 0.1 radians per 3 frames
+
           let diff = targetAngle - currentAngle;
           // Normalize diff to -PI, PI
           diff = Math.atan2(Math.sin(diff), Math.cos(diff));
-          let maxTurn = 0.15;
+
+          let maxTurn = 0.25; // SỬA LỖI: Tăng khả năng bẻ cong của đạn (trước đây 0.15 quá yếu)
           if (diff > maxTurn) diff = maxTurn;
           if (diff < -maxTurn) diff = -maxTurn;
 

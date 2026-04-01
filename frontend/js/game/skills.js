@@ -467,21 +467,21 @@ function triggerSkill(key, canvas, changeStateFn) {
 
   // ===== ORACLE =====
   else if (char === "oracle") {
-    if (key === "q") state.activeBuffs.q = 5 * FPS; // Tầm nhìn 5s
+    if (key === "q") state.activeBuffs.q = 3 * FPS; // SỬA: Set thành 3s theo config
 
     if (key === "e") {
       // Dịch chuyển đến chuột
       let mx = state.mouse.x;
       let my = state.mouse.y;
 
-      // Clamp vào màn hình
+      // Clamp vào màn hình - SỬA LỖI: Không fix cứng 800/600 mà phải dùng canvas dynamic
       mx = Math.max(
         state.player.radius,
-        Math.min(800 - state.player.radius, mx),
+        Math.min(canvas.width - state.player.radius, mx),
       );
       my = Math.max(
         state.player.radius,
-        Math.min(600 - state.player.radius, my),
+        Math.min(canvas.height - state.player.radius, my),
       );
 
       // Tạo phantom tĩnh (dư ảnh)
