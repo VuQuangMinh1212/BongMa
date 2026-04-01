@@ -159,17 +159,17 @@ export function updateBullets(
           hitGhost = true;
           // Piercing bullets do not get destroyed by ghosts
           if (!b.pierce) {
-              if (b.bounces > 0) {
-                  b.bounces--;
-                  let angle = Math.atan2(b.vy, b.vx);
-                  angle += Math.PI + (Math.random() * 1 - 0.5); // bounce randomly off ghost
-                  let speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
-                  b.vx = Math.cos(angle) * speed;
-                  b.vy = Math.sin(angle) * speed;
-                  hitGhost = false; // Don't splice yet since it bounced
-              } 
+            if (b.bounces > 0) {
+              b.bounces--;
+              let angle = Math.atan2(b.vy, b.vx);
+              angle += Math.PI + (Math.random() * 1 - 0.5); // bounce randomly off ghost
+              let speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+              b.vx = Math.cos(angle) * speed;
+              b.vy = Math.sin(angle) * speed;
+              hitGhost = false; // Don't splice yet since it bounced
+            }
           } else {
-              hitGhost = false; // Pierce active, don't splice
+            hitGhost = false; // Pierce active, don't splice
           }
           break;
         }

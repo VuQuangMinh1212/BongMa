@@ -372,7 +372,7 @@ export const CHARACTERS = [
       {
         key: "q",
         name: "Tầm Nhìn",
-        desc: "Hiển thị đường đi của đạn địch rõ hơn trong 5 giây. (Hồi: 12s)",
+        desc: "Làm chậm mọi đường đạn của kẻ thù trong 3s. (Hồi: 12s)",
         cooldown: 12,
         initialCooldown: 0,
       },
