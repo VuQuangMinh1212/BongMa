@@ -2,25 +2,22 @@ import { state } from "../state.js";
 import { FPS } from "../config.js";
 import { dist } from "../utils.js";
 import { UI, updateHealthUI, updateXPUI } from "../ui.js";
-import { playSound } from "./audio.js"; // IMPORT ÂM THANH VÀO ĐÂY
+import { playSound } from "./audio.js";
 
-/**
- * Xử lý khi player nhận sát thương.
- * Tính đến grace period, dash, shield.
- */
 export function playerTakeDamage(ctx, canvas, changeStateFn) {
   if (state.player.gracePeriod > 0 || state.player.dashTimeLeft > 0) return;
 
-  // Bất tử từ Kỹ năng
   let buffs = state.activeBuffs || { q: 0, e: 0, r: 0 };
   let isInvulnSkill =
     (buffs.e > 0 &&
       (state.player.characterId === "tank" ||
-        state.player.characterId === "ghost")) ||
+        state.player.characterId === "ghost" ||
+        state.player.characterId === "reaper")) ||
     (buffs.q > 0 &&
       (state.player.characterId === "warden" ||
         state.player.characterId === "assassin" ||
-        state.player.characterId === "spirit"));
+        state.player.characterId === "spirit" ||
+        state.player.characterId === "frost"));
 
   if (isInvulnSkill) {
     return;
@@ -29,25 +26,30 @@ export function playerTakeDamage(ctx, canvas, changeStateFn) {
   if (state.player.shield > 0) {
     state.player.shield--;
     state.player.shieldRegenTimer = 5 * FPS;
-    playSound("damage"); // Tiếng vỡ khiên
+    playSound("damage");
+
+    if (state.player.characterId === "frost" && buffs.e > 0) {
+      import("../entities.js").then(module => {
+        for (let i = 0; i < Math.PI * 2; i += Math.PI / 4) {
+          module.spawnBullet(state.player.x, state.player.y, state.player.x + Math.cos(i), state.player.y + Math.sin(i), true);
+        }
+      });
+      state.activeBuffs.e = 0;
+    }
   } else {
     state.player.hp--;
-    playSound("damage"); // Tiếng mất máu
+    playSound("damage");
   }
 
   state.player.gracePeriod = 60;
   updateHealthUI();
 
-  // Flash màn hình đỏ
   ctx.fillStyle = "rgba(255,0,0,0.5)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   if (state.player.hp <= 0) changeStateFn("GAME_OVER");
 }
 
-/**
- * Cộng XP cho player, kiểm tra level-up.
- */
 export function addExperience(amount, changeStateFn) {
   if (!state.player) return;
   state.player.experience += amount;
@@ -60,16 +62,13 @@ export function addExperience(amount, changeStateFn) {
     );
     state.upgradeFromXP = true;
     updateXPUI();
-    playSound("button"); // Tiếng ting ting khi lên cấp
+    playSound("button");
     changeStateFn("UPGRADE");
     return;
   }
   updateXPUI();
 }
 
-/**
- * Cập nhật tất cả bullets: di chuyển, bounce, va chạm boss/ghost/player.
- */
 export function updateBullets(
   ctx,
   canvas,
@@ -80,30 +79,31 @@ export function updateBullets(
   let buffs = state.activeBuffs || { q: 0, e: 0, r: 0 };
   let isInvulnSkill =
     (buffs.e > 0 &&
-      (player.characterId === "tank" || player.characterId === "ghost")) ||
+      (player.characterId === "tank" || player.characterId === "ghost" || player.characterId === "reaper")) ||
     (buffs.q > 0 &&
       (player.characterId === "warden" || player.characterId === "assassin"));
   let isInvulnerable =
     player.gracePeriod > 0 || player.dashTimeLeft > 0 || isInvulnSkill;
   let isSummonerQ = player.characterId === "summoner" && buffs.q > 0;
 
+  let isOracleQ = player.characterId === "oracle" && buffs.q > 0;
+  let isFrostR = player.characterId === "frost" && buffs.r > 0;
+  let isHunterE = player.characterId === "hunter" && buffs.e > 0;
+
   for (let i = bullets.length - 1; i >= 0; i--) {
     let b = bullets[i];
-    //Spirit E đẩy đạn địch ra xa player
     let isSpiritE = player.characterId === "spirit" && buffs.e > 0;
 
     if (isSpiritE && !b.isPlayer) {
       let d = dist(b.x, b.y, player.x, player.y);
       if (d < 200) {
-        // đẩy hướng ra xa player
         let angle = Math.atan2(b.y - player.y, b.x - player.x);
         let speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
-
         b.vx = Math.cos(angle) * speed;
         b.vy = Math.sin(angle) * speed;
       }
     }
-    // ===== ENGINEER SHIELD =====
+
     let isEngineerR = player.characterId === "engineer" && buffs.r > 0;
     if (isEngineerR) {
       if (!b.isPlayer && dist(b.x, b.y, player.x, player.y) < 120) {
@@ -111,35 +111,35 @@ export function updateBullets(
         continue;
       }
     }
-    // Đạn địch bị đóng băng
+
     if (!b.isPlayer && isTimeFrozen) {
       // Giữ nguyên vị trí
     } else {
-      b.x += b.vx;
-      b.y += b.vy;
-      b.life--;
+      let speedMult = (!b.isPlayer && isOracleQ) ? 0.3 : 1;
+
+      if (!b.isPlayer && isFrostR && dist(b.x, b.y, player.x, player.y) < 200) {
+        speedMult = 0.2;
+      }
+
+      if (!b.isPlayer && isHunterE && dist(b.x, b.y, player.x, player.y) < 300) {
+        speedMult = 0.2;
+      }
+
+      b.x += b.vx * speedMult;
+      b.y += b.vy * speedMult;
+
+      if (!b.isPlayer && speedMult < 1) {
+        b.life -= speedMult;
+      } else {
+        b.life--;
+      }
     }
 
-    // Bounce tường
     let hitWall = false;
-    if (b.x < b.radius) {
-      b.x = b.radius;
-      b.vx *= -1;
-      hitWall = true;
-    } else if (b.x > canvas.width - b.radius) {
-      b.x = canvas.width - b.radius;
-      b.vx *= -1;
-      hitWall = true;
-    }
-    if (b.y < b.radius) {
-      b.y = b.radius;
-      b.vy *= -1;
-      hitWall = true;
-    } else if (b.y > canvas.height - b.radius) {
-      b.y = canvas.height - b.radius;
-      b.vy *= -1;
-      hitWall = true;
-    }
+    if (b.x < b.radius) { b.x = b.radius; b.vx *= -1; hitWall = true; }
+    else if (b.x > canvas.width - b.radius) { b.x = canvas.width - b.radius; b.vx *= -1; hitWall = true; }
+    if (b.y < b.radius) { b.y = b.radius; b.vy *= -1; hitWall = true; }
+    else if (b.y > canvas.height - b.radius) { b.y = canvas.height - b.radius; b.vy *= -1; hitWall = true; }
 
     if (hitWall) {
       if (b.bounces > 0) {
@@ -154,52 +154,81 @@ export function updateBullets(
     }
 
     if (b.isPlayer) {
+      // SỬA LỖI ĐƠ GAME TẠI ĐÂY: Lưu danh sách quái đã trúng đạn xuyên
+      if (!b.hitList) b.hitList = [];
+
       if (boss && dist(b.x, b.y, boss.x, boss.y) < boss.radius + b.radius) {
-        boss.hp -= b.damage || 1;
-        UI.bossHp.style.width = Math.max(0, (boss.hp / boss.maxHp) * 100) + "%";
-        // Sniper piercing shot stops at Boss for balance
-        bullets.splice(i, 1);
-        if (boss.hp <= 0) {
-          state.player.coins = (state.player.coins || 0) + 100;
-          state._bossKilled = true;
+        if (!b.hitList.includes("boss")) {
+          b.hitList.push("boss");
+          let finalDmg = b.damage || 1;
+          if (state.player.characterId === "hunter" && state.activeBuffs.e > 0 && state.hunterMarkTarget === boss) {
+            finalDmg *= 2;
+          }
+          boss.hp -= finalDmg;
+          UI.bossHp.style.width = Math.max(0, (boss.hp / boss.maxHp) * 100) + "%";
+
+          if (state.player.characterId === "scout" && buffs.r > 0) {
+            if (state.skillsCD.q > 0) state.skillsCD.q = Math.max(0, state.skillsCD.q - 0.5 * FPS);
+            if (state.skillsCD.e > 0) state.skillsCD.e = Math.max(0, state.skillsCD.e - 0.5 * FPS);
+          }
+
+          if (!b.pierce) bullets.splice(i, 1);
+          if (boss.hp <= 0) {
+            state.player.coins = (state.player.coins || 0) + 100;
+            state._bossKilled = true;
+          }
         }
-        continue;
+        if (!b.pierce) continue;
       }
 
-      // Va chạm ghost
       let hitGhost = false;
       for (let j = ghosts.length - 1; j >= 0; j--) {
         let g = ghosts[j];
+
+        // Đã trúng thì bỏ qua, không tính sát thương lần 2 gây lag!
+        if (b.hitList.includes(g)) continue;
+
         if (
           g.isStunned <= 0 &&
           g.x > 0 &&
           dist(b.x, b.y, g.x, g.y) < g.radius + b.radius
         ) {
+          b.hitList.push(g);
+
           if (state.isBossLevel) {
             ghosts.splice(j, 1);
             state.player.coins = (state.player.coins || 0) + 10;
           } else {
-            g.isStunned = b.damage === 2 ? 600 : 300;
-            g.hp = (g.hp || 1) - (b.damage || 1);
+            let finalDmg = b.damage || 1;
+            if (state.player.characterId === "hunter" && state.activeBuffs.e > 0 && state.hunterMarkTarget === g) {
+              finalDmg *= 2;
+            }
+            g.isStunned = finalDmg >= 2 ? 600 : 300;
+            g.hp = (g.hp || 1) - finalDmg;
             addExperience(6, changeStateFn);
             state.player.coins = (state.player.coins || 0) + 5;
           }
           hitGhost = true;
-          // Piercing bullets do not get destroyed by ghosts
+
+          if (state.player.characterId === "scout" && buffs.r > 0) {
+            if (state.skillsCD.q > 0) state.skillsCD.q = Math.max(0, state.skillsCD.q - 0.5 * FPS);
+            if (state.skillsCD.e > 0) state.skillsCD.e = Math.max(0, state.skillsCD.e - 0.5 * FPS);
+          }
+
           if (!b.pierce) {
             if (b.bounces > 0) {
               b.bounces--;
               let angle = Math.atan2(b.vy, b.vx);
-              angle += Math.PI + (Math.random() * 1 - 0.5); // bounce randomly off ghost
+              angle += Math.PI + (Math.random() * 1 - 0.5);
               let speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
               b.vx = Math.cos(angle) * speed;
               b.vy = Math.sin(angle) * speed;
-              hitGhost = false; // Don't splice yet since it bounced
+              hitGhost = false;
             }
           } else {
-            hitGhost = false; // Pierce active, don't splice
+            hitGhost = false;
           }
-          break;
+          if (hitGhost) break;
         }
       }
       if (hitGhost) {
@@ -207,17 +236,13 @@ export function updateBullets(
         continue;
       }
     } else {
-      // Đạn địch
       if (
         isSummonerQ &&
         dist(b.x, b.y, player.x, player.y) < player.radius + 40
       ) {
-        // Đạn địch bị phá hủy bởi khiên quay của Summoner
         bullets.splice(i, 1);
         continue;
       }
-
-      // Đạn địch trúng player
       if (
         !isInvulnerable &&
         dist(b.x, b.y, player.x, player.y) < player.radius + b.radius - 2
@@ -229,7 +254,6 @@ export function updateBullets(
     }
   }
 
-  // Summoner Q damages enemies
   if (isSummonerQ && Math.random() < 0.15) {
     if (boss && dist(player.x, player.y, boss.x, boss.y) < boss.radius + 45) {
       boss.hp -= 1;
