@@ -12,6 +12,10 @@ export { TOKEN_KEY, login, register };
 
 export let currentUser = null;
 
+export function isAuthenticated() {
+  return !!localStorage.getItem(TOKEN_KEY);
+}
+
 export function showLoginScreen() {
   document.getElementById("screen-login").classList.remove("hidden");
   document.getElementById("screen-main").classList.add("hidden");
@@ -106,25 +110,24 @@ export function initAuth(onAuthenticated) {
 export async function syncRemoteState() {
   try {
     const remote = await loadGameFromServer();
-    if (!remote || !remote.gameState) return;
+    if (!remote) return;
+
+    // Check if we have root data (like in the user screenshot) or inside gameState
+    const rootData = remote.gameState || remote;
 
     const saved = {
-      level: remote.gameState.level || 1,
-      runs: remote.gameState.runs || [],
-      player: remote.gameState.player || null,
-      ownedCharacters: remote.ownedCharacters ||
-        remote.gameState.ownedCharacters || ["speedster"],
-      selectedCharacter:
-        remote.selectedCharacter ||
-        remote.gameState.selectedCharacter ||
-        "speedster",
-      characterUpgrades:
-        remote.characterUpgrades || remote.gameState.characterUpgrades || {},
-      resources:
-        remote.resources ||
-        remote.gameState.resources || { common: 0, rare: 0, legendary: 0 },
-      bossFragments:
-        remote.bossFragments || remote.gameState.bossFragments || [],
+      level: rootData.level || 1,
+      runs: rootData.runs || [],
+      player: rootData.player || null,
+      ownedCharacters: remote.ownedCharacters || 
+                       rootData.ownedCharacters || ["speedster"],
+      selectedCharacter: remote.selectedCharacter || 
+                         rootData.selectedCharacter || "speedster",
+      characterUpgrades: rootData.characterUpgrades || {},
+      resources: remote.resources || 
+                 rootData.resources || { common: 0, rare: 0, legendary: 0 },
+      bossFragments: remote.bossFragments || 
+                     rootData.bossFragments || [],
     };
 
     localStorage.setItem(GHOST_DATA_KEY, JSON.stringify(saved));
@@ -134,9 +137,15 @@ export async function syncRemoteState() {
     state.characterUpgrades = saved.characterUpgrades;
     state.resources = saved.resources;
     state.bossFragments = saved.bossFragments;
-    if (remote.coins !== undefined) {
-      if (!state.player) state.player = {};
-      state.player.coins = remote.coins;
+    
+    // Fix coins sync
+    const coins = remote.coins !== undefined ? remote.coins : (rootData.coins || 0);
+    if (!state.player) state.player = {};
+    state.player.coins = coins;
+    
+    if (saved.player) {
+        state.player = { ...state.player, ...saved.player };
+        state.player.coins = coins; // Re-apply coins to ensure it's correct
     }
   } catch (e) {
     console.warn("syncRemoteState failed:", e);

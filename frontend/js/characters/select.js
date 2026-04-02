@@ -19,8 +19,8 @@ export function renderCharacterSelect() {
   let container = document.getElementById("char-cards");
   container.innerHTML = "";
 
-  const rarityOrder = { common: 1, rare: 2, legendary: 3 };
-  const rarityColors = { common: "#4ade80", rare: "#60a5fa", legendary: "#c084fc" };
+  const rarityOrder = { common: 1, rare: 2, legendary: 3, mythical: 4 };
+  const rarityColors = { common: "#4ade80", rare: "#60a5fa", legendary: "#c084fc", mythical: "#ff0088" };
   const sortedCharacters = [...CHARACTERS].sort((a, b) => {
     return (rarityOrder[a.rarity] || 99) - (rarityOrder[b.rarity] || 99);
   });

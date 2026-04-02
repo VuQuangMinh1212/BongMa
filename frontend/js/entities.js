@@ -261,6 +261,61 @@ export const ATTACK_MODES = {
     fan(boss.x, boss.y, base, 11, 0.03, 3);
     ring(boss.x, boss.y, 12, boss.attackTimer * 0.12, 2);
   },
+
+  // ===== NEW ATTACK MODES =====
+  25: (boss) => {
+    // Fullscreen rain - đạn rơi từ trên xuống toàn màn hình
+    for (let x = 20; x <= 780; x += 30) {
+      spawnBullet(x, -20, x + (Math.random() - 0.5) * 60, 620, false, 1, "boss");
+    }
+  },
+
+  26: (boss) => {
+    // Cross Laser - 4 tia laser xoay từ boss
+    const t = boss.attackTimer * 0.06;
+    for (let arm = 0; arm < 4; arm++) {
+      const baseAngle = t + arm * (Math.PI / 2);
+      for (let i = 0; i < 8; i++) {
+        fireAngle(boss.x, boss.y, baseAngle + i * 0.08, 2);
+      }
+    }
+  },
+
+  27: (boss) => {
+    // Diamond Cage - đạn bay hình thoi khép vào player
+    const px = state.player.x, py = state.player.y;
+    const r = 250;
+    const points = [
+      { x: px, y: py - r },
+      { x: px + r, y: py },
+      { x: px, y: py + r },
+      { x: px - r, y: py },
+    ];
+    points.forEach(p => {
+      for (let i = -2; i <= 2; i++) {
+        spawnBullet(p.x + i * 20, p.y, px, py, false, 1, "boss");
+      }
+    });
+  },
+
+  28: (boss) => {
+    // Spiral Inferno - 3 lớp xoáy ốc
+    const t = boss.attackTimer * 0.15;
+    for (let layer = 0; layer < 3; layer++) {
+      for (let i = 0; i < 10; i++) {
+        fireAngle(boss.x, boss.y, t * (1 + layer * 0.3) + i * 0.65 + layer * (TAU / 3), layer);
+      }
+    }
+  },
+
+  29: (boss) => {
+    // Death Wave - sóng đạn sin tỏa ra
+    const base = boss.attackTimer * 0.03;
+    for (let i = 0; i < 30; i++) {
+      const angle = (i / 30) * TAU + Math.sin(boss.attackTimer * 0.1 + i * 0.5) * 0.3;
+      fireAngle(boss.x, boss.y, base + angle, i % 3);
+    }
+  },
 };
 
 // =======================
@@ -271,21 +326,33 @@ export const BOSS_TYPES = {
     name: "Fire Lord",
     hp: 200,
     speed: 2,
-    attackModes: [0, 1, 2, 3, 4],
     color: "#ff4500",
-    shape: "circle", // Added shape property
+    shape: "circle",
+    icon: "🔥",
+    phaseCount: 3,
+    phases: [
+      { attackModes: [0, 1, 2], speedMult: 1.0 },
+      { attackModes: [3, 4, 25], speedMult: 1.3 },
+      { attackModes: [28, 27, 1], speedMult: 1.6, rageFireRate: 0.7 },
+    ],
     phaseColors: [
-      { start: "#ff4500", end: "#ff0000" }, // phase 1
-      { start: "#ff9900", end: "#ff2200" }, // phase 2
+      { start: "#ff4500", end: "#ff0000" },
+      { start: "#ff9900", end: "#ff2200" },
+      { start: "#ff0000", end: "#ffff00" },
     ],
   },
   iceBoss: {
     name: "Ice Queen",
     hp: 180,
     speed: 1.5,
-    attackModes: [5, 6, 7, 8, 9],
     color: "#00ffff",
-    shape: "hexagon", // Added shape property
+    shape: "hexagon",
+    icon: "❄️",
+    phaseCount: 2,
+    phases: [
+      { attackModes: [5, 6, 7], speedMult: 1.0 },
+      { attackModes: [8, 9, 26], speedMult: 1.4, rageFireRate: 0.75 },
+    ],
     phaseColors: [
       { start: "#00ffff", end: "#0099ff" },
       { start: "#99ffff", end: "#33ccff" },
@@ -295,21 +362,33 @@ export const BOSS_TYPES = {
     name: "Thunder King",
     hp: 220,
     speed: 2.5,
-    attackModes: [10, 11, 12, 13, 14],
     color: "#ffff00",
-    shape: "triangle", // Added shape property
+    shape: "triangle",
+    icon: "⚡",
+    phaseCount: 3,
+    phases: [
+      { attackModes: [10, 11, 12], speedMult: 1.0 },
+      { attackModes: [13, 14, 29], speedMult: 1.4 },
+      { attackModes: [25, 26, 28], speedMult: 1.8, rageFireRate: 0.6 },
+    ],
     phaseColors: [
       { start: "#ffff00", end: "#ffcc00" },
       { start: "#ffcc33", end: "#ffaa00" },
+      { start: "#ffffff", end: "#ffff00" },
     ],
   },
   earthBoss: {
     name: "Earth Titan",
     hp: 250,
     speed: 1,
-    attackModes: [15, 16, 17, 18, 19],
     color: "#8b4513",
-    shape: "square", // Added shape property
+    shape: "square",
+    icon: "🪨",
+    phaseCount: 2,
+    phases: [
+      { attackModes: [15, 16, 17], speedMult: 1.0 },
+      { attackModes: [18, 19, 27], speedMult: 1.5, rageFireRate: 0.7 },
+    ],
     phaseColors: [
       { start: "#8b4513", end: "#5a3310" },
       { start: "#a0522d", end: "#6b4226" },
@@ -319,12 +398,19 @@ export const BOSS_TYPES = {
     name: "Wind Spirit",
     hp: 190,
     speed: 3,
-    attackModes: [20, 21, 22, 23, 24],
     color: "#00ffcc",
-    shape: "star", // Added shape property
+    shape: "star",
+    icon: "🌪️",
+    phaseCount: 3,
+    phases: [
+      { attackModes: [20, 21, 22], speedMult: 1.0 },
+      { attackModes: [23, 24, 29], speedMult: 1.5 },
+      { attackModes: [25, 26, 28], speedMult: 2.0, rageFireRate: 0.5 },
+    ],
     phaseColors: [
       { start: "#00ffcc", end: "#00cc99" },
       { start: "#33ffcc", end: "#00ffaa" },
+      { start: "#00ffff", end: "#ffffff" },
     ],
   },
 };
@@ -426,12 +512,24 @@ export function spawnBossAttack() {
   const boss = state.boss;
   boss.attackTimer++;
 
+  // --- Boss Movement ---
+  boss.moveTimer++;
+  if (boss.moveTimer % 120 === 0) {
+    // Pick new target position
+    const padding = 80;
+    boss.moveTargetX = padding + Math.random() * (800 - padding * 2);
+    boss.moveTargetY = padding + Math.random() * (300 - padding);
+  }
+  // Smooth movement towards target
+  const currentPhaseIdx = getBossPhase(boss);
+  const phaseSpeedMult = boss.phases[currentPhaseIdx]?.speedMult || 1.0;
+  const moveSpeed = boss.speed * phaseSpeedMult * 0.02;
+  boss.x += (boss.moveTargetX - boss.x) * moveSpeed;
+  boss.y += (boss.moveTargetY - boss.y) * moveSpeed;
+
   if (boss.isCharging) {
     if (boss.chargeTimer > 0) {
       boss.chargeTimer--;
-      if (boss.chargeTimer % 20 === 0) {
- // Placeholder for chargeWindUp
-      }
     } else {
       boss.isCharging = false;
       spawnMode(boss.chargeAttack || 0);
@@ -439,11 +537,12 @@ export function spawnBossAttack() {
     return;
   }
 
-  const currentPhase = boss.hp <= boss.maxHp / 2 ? 1 : 0;
-  const phaseModes = boss.phases[currentPhase].attackModes;
+  const phaseModes = boss.phases[currentPhaseIdx].attackModes;
+  const rageRate = boss.phases[currentPhaseIdx].rageFireRate || 1.0;
+  const attackInterval = Math.max(30, Math.floor(60 * rageRate));
 
-  if (boss.attackTimer % 60 === 0) {
-    const index = Math.floor(boss.attackTimer / 60) % phaseModes.length;
+  if (boss.attackTimer % attackInterval === 0) {
+    const index = Math.floor(boss.attackTimer / attackInterval) % phaseModes.length;
     spawnMode(phaseModes[index]);
   }
 
@@ -451,8 +550,18 @@ export function spawnBossAttack() {
     boss.isCharging = true;
     boss.chargeTimer = 60;
     boss.chargeAttack = phaseModes[Math.floor(Math.random() * phaseModes.length)];
- // Placeholder for chargeStart
   }
+}
+
+function getBossPhase(boss) {
+  const ratio = boss.hp / boss.maxHp;
+  if (boss.phaseCount === 3) {
+    if (ratio > 0.66) return 0;
+    if (ratio > 0.33) return 1;
+    return 2;
+  }
+  // 2 phases
+  return ratio > 0.5 ? 0 : 1;
 }
 
 // =======================
@@ -472,14 +581,16 @@ export function createBoss(type) {
     summonCooldown: 5 * FPS,
     ghostsActive: false,
     color: cfg.color,
-    shape: cfg.shape, // Assign shape property to boss instance
+    shape: cfg.shape,
     name: cfg.name,
-    phaseColors: cfg.phaseColors, // Pass phaseColors to boss instance
+    bossType: type,
+    phaseColors: cfg.phaseColors,
+    phaseCount: cfg.phaseCount || 2,
+    moveTimer: 0,
+    moveTargetX: 400,
+    moveTargetY: 150,
 
-    phases: [
-      { attackModes: cfg.attackModes.slice(0, Math.ceil(cfg.attackModes.length / 2)) },
-      { attackModes: cfg.attackModes.slice(Math.ceil(cfg.attackModes.length / 2)) },
-    ],
+    phases: cfg.phases.map(p => ({ ...p })),
   };
 }
 

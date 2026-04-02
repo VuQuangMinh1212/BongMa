@@ -101,6 +101,7 @@
         <br /><br />
         <button id="btn-select-character">CHỌN NHÂN VẬT</button>
         <button id="btn-shop">CỬA HÀNG</button>
+        <button id="btn-boss-arena" style="background:#ff4444;color:#fff;">⚔️ BOSS ARENA</button>
         <br /><br />
         <button id="btn-logout" style="
               background: #ff4444;
@@ -196,14 +197,35 @@
       <button id="spinner-close" style="display:none; margin-top:15px;">OK</button>
     </div>
   </div>
+  <div id="screen-boss-arena" class="overlay hidden">
+    <div class="panel">
+      <h2 class="title-main" style="color:#ff4444;">⚔️ BOSS ARENA</h2>
+      <p class="desc">Chọn boss để đấu! Hạ gục boss để nhận phần thưởng và nguyên liệu ghép nhân vật MYTHICAL.</p>
+      <div class="card-container" id="boss-arena-cards"></div>
+      <button id="btn-arena-back">Quay Lại</button>
+    </div>
+  </div>
   <div id="fragment-drop-overlay" class="overlay hidden">
     <div class="panel" style="text-align:center; max-width:400px;">
-      <h2 class="title-main" style="color:#ffd700;">⭐ NGUYÊN LIỆU ĐẶC BIỆT!</h2>
+      <h2 class="title-main" style="color:#ff0088;">⭐ NGUYÊN LIỆU ĐẶC BIỆT!</h2>
       <div id="fragment-drop-icon" style="font-size:64px; margin:15px 0;"></div>
-      <div id="fragment-drop-name" style="font-size:22px; color:#ffd700; font-weight:bold;"></div>
+      <div id="fragment-drop-name" style="font-size:22px; color:#ff0088; font-weight:bold;"></div>
       <div id="fragment-drop-count" style="font-size:16px; color:#aaa; margin-top:10px;"></div>
-      <p style="font-size:13px; color:#888; margin-top:10px;">Thu thập 5 mảnh khác nhau để đổi 1 nhân vật Legendary!</p>
+      <p style="font-size:13px; color:#888; margin-top:10px;">Thu thập 5 mảnh khác nhau để đổi 1 nhân vật MYTHICAL!</p>
       <button id="fragment-drop-close" style="margin-top:15px;">OK</button>
+    </div>
+  </div>
+  <div id="screen-arena-victory" class="overlay hidden">
+    <div class="panel" style="text-align:center; max-width:450px; border-color: #ffd700; box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);">
+      <h2 class="title-main text-gold">CHINH PHỤC BOSS THÀNH CÔNG</h2>
+      <p class="desc">Bạn đã hạ gục boss trong Arena!</p>
+      
+      <div id="arena-rewards" style="margin: 20px 0; background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px;">
+        <div id="arena-coins-reward" style="font-size: 20px; color: #ffd700; margin-bottom: 10px;"></div>
+        <div id="arena-rare-reward" style="font-size: 18px; color: #00ffcc;"></div>
+      </div>
+
+      <button id="btn-arena-victory-back" style="width: 100%; height: 50px; font-size: 18px;">QUAY LẠI MENU</button>
     </div>
   </div>
   <script type="module" src="js/main.js"></script>

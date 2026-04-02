@@ -573,25 +573,28 @@ function triggerSkill(key, canvas, changeStateFn) {
         }
       });
       for (let i = 0; i < 5; i++) {
-        setTimeout(() => {
-          let tx = state.mouse.x,
-            ty = state.mouse.y;
-          if (
-            targetObj &&
-            (targetObj === state.boss ||
-              (targetObj.x > 0 && targetObj.isStunned <= 0))
-          ) {
-            tx = targetObj.x;
-            ty = targetObj.y;
-          }
-          let oldLen = state.bullets.length;
-          spawnBullet(state.player.x, state.player.y, tx, ty, true, 2);
-          if (state.bullets.length > oldLen) {
-            let b = state.bullets[state.bullets.length - 1];
-            b.damage = 2;
-            b.radius = 6;
-          }
-        }, i * 150);
+        state.delayedTasks.push({
+          delay: Math.round(i * 0.15 * FPS),
+          action: () => {
+            let tx = state.mouse.x,
+              ty = state.mouse.y;
+            if (
+              targetObj &&
+              (targetObj === state.boss ||
+                (targetObj.x > 0 && targetObj.isStunned <= 0))
+            ) {
+              tx = targetObj.x;
+              ty = targetObj.y;
+            }
+            let oldLen = state.bullets.length;
+            spawnBullet(state.player.x, state.player.y, tx, ty, true, 2);
+            if (state.bullets.length > oldLen) {
+              let b = state.bullets[state.bullets.length - 1];
+              b.damage = 2;
+              b.radius = 6;
+            }
+          },
+        });
       }
     }
   } else if (char === "spirit") {
@@ -671,37 +674,55 @@ function triggerSkill(key, canvas, changeStateFn) {
     if (key === "e") state.activeBuffs.e = 10 * FPS;
     if (key === "r") {
       for (let i = 0; i < 15; i++) {
-        setTimeout(() => {
-          let angOffset = (Math.random() - 0.5) * 0.8;
-          let dirX = state.mouse.x - state.player.x,
-            dirY = state.mouse.y - state.player.y;
-          let angle = Math.atan2(dirY, dirX) + angOffset;
-          spawnBullet(
-            state.player.x,
-            state.player.y,
-            state.player.x + Math.cos(angle) * 100,
-            state.player.y + Math.sin(angle) * 100,
-            true,
-            1.5,
-          );
-        }, i * 60);
+        state.delayedTasks.push({
+          delay: Math.round(i * 0.06 * FPS),
+          action: () => {
+            let angOffset = (Math.random() - 0.5) * 0.8;
+            let dirX = state.mouse.x - state.player.x,
+              dirY = state.mouse.y - state.player.y;
+            let angle = Math.atan2(dirY, dirX) + angOffset;
+            spawnBullet(
+              state.player.x,
+              state.player.y,
+              state.player.x + Math.cos(angle) * 100,
+              state.player.y + Math.sin(angle) * 100,
+              true,
+              1.5,
+            );
+          },
+        });
       }
     }
   } else if (char === "scout") {
+    // ===== Q: Trảm Xoáy =====
     if (key === "q") {
       state.activeBuffs.q = 15;
+      state.isScoutQ = true; // Flag for drawing
+      
+      const dmg = 10; // Tăng sát thương để chém chết quái
+      const radius = 150; // Tăng tầm chém
+
       state.ghosts.forEach((g) => {
-        if (dist(state.player.x, state.player.y, g.x, g.y) < 100) {
-          g.hp -= 2;
-          g.isStunned = 30;
+        if (dist(state.player.x, state.player.y, g.x, g.y) < radius) {
+          if (g.hp === undefined) g.hp = 1; // Base HP
+          g.hp -= dmg;
+          g.isStunned = Math.max(g.isStunned, 30);
         }
       });
       if (
         state.boss &&
-        dist(state.player.x, state.player.y, state.boss.x, state.boss.y) < 120
+        dist(state.player.x, state.player.y, state.boss.x, state.boss.y) < radius + state.boss.radius
       )
-        state.boss.hp -= 5;
+        state.boss.hp -= dmg;
+
+      // Reset visual after 15 frames
+      state.delayedTasks.push({
+        delay: 15,
+        action: () => { state.isScoutQ = false; }
+      });
     }
+
+    // ===== E: Bắn Móc =====
     if (key === "e") {
       let mx = state.mouse.x,
         my = state.mouse.y;
@@ -712,9 +733,10 @@ function triggerSkill(key, canvas, changeStateFn) {
         dx /= len;
         dy /= len;
       }
+      // Đu móc mượt hơn, tốc độ 3.5x normal
       state.player.dashTimeLeft = Math.min(
-        20,
-        Math.floor(len / (state.player.speed * 3)),
+        25,
+        Math.floor(len / (state.player.speed * 3.5))
       );
       state.player.dashDx = dx;
       state.player.dashDy = dy;
@@ -844,6 +866,181 @@ function triggerSkill(key, canvas, changeStateFn) {
     // ===== R: living painting =====
     if (key === "r") {
       state.activeBuffs.r = 6 * FPS;
+    }
+
+  // ===== DESTROYER (Thần Hủy Diệt) =====
+  } else if (char === "destroyer") {
+    // ===== Q: Vết Nứt Không Gian =====
+    if (key === "q") {
+      const mx = state.mouse?.x || state.player.x;
+      const my = state.mouse?.y || state.player.y;
+      const angle = Math.atan2(my - state.player.y, mx - state.player.x);
+      const len = Math.min(300, dist(state.player.x, state.player.y, mx, my));
+
+      // Spawn laser trail
+      if (!state.destroyerRifts) state.destroyerRifts = [];
+      state.destroyerRifts.push({
+        x: state.player.x,
+        y: state.player.y,
+        endX: state.player.x + Math.cos(angle) * len,
+        endY: state.player.y + Math.sin(angle) * len,
+        life: 5 * FPS,
+        angle: angle,
+      });
+
+      // Instant damage on path
+      if (state.boss) {
+        const bx = state.boss.x, by = state.boss.y;
+        const dx = bx - state.player.x, dy = by - state.player.y;
+        const proj = (dx * Math.cos(angle) + dy * Math.sin(angle));
+        const perpDist = Math.abs(-dx * Math.sin(angle) + dy * Math.cos(angle));
+        if (proj > 0 && proj < len && perpDist < 50) {
+          state.boss.hp -= 8;
+        }
+      }
+
+      state.skillsCD.q = getCooldown(char, 0).cd * FPS;
+    }
+
+    // ===== E: Hấp Thụ =====
+    if (key === "e") {
+      state.destroyerAbsorb = {
+        x: state.player.x,
+        y: state.player.y,
+        life: 1 * FPS, // 1s invulnerable
+        radius: 150,
+        absorbed: 0,
+      };
+      state.player.gracePeriod = Math.max(state.player.gracePeriod, FPS);
+
+      // Absorb enemy bullets
+      let absorbed = 0;
+      state.bullets = state.bullets.filter(b => {
+        if (!b.isPlayer && dist(b.x, b.y, state.player.x, state.player.y) < 150) {
+          absorbed++;
+          return false;
+        }
+        return true;
+      });
+
+      // Every 5 bullets = +1 multishot for 6s
+      const bonusShots = Math.floor(absorbed / 5);
+      if (bonusShots > 0) {
+        state.player.buffs = state.player.buffs || { multiShot: 0, bounces: 0 };
+        state.player.buffs.multiShot += bonusShots;
+        state.destroyerAbsorbBuff = { shots: bonusShots, life: 6 * FPS };
+      }
+
+      state.skillsCD.e = getCooldown(char, 1).cd * FPS;
+    }
+
+    // ===== R: Hủy Diệt =====
+    if (key === "r") {
+      state.destroyerUlt = {
+        life: 8 * FPS,
+        radius: 120,
+      };
+      state.activeBuffs.r = 8 * FPS;
+      state.skillsCD.r = getCooldown(char, 2).cd * FPS;
+    }
+
+  // ===== CREATOR (Thần Sáng Thế) =====
+  } else if (char === "creator") {
+    // ===== Q: Sáng Tạo - 4 tháp canh =====
+    if (key === "q") {
+      if (!state.creatorTurrets) state.creatorTurrets = [];
+      const offsets = [
+        { dx: -80, dy: -80 },
+        { dx: 80, dy: -80 },
+        { dx: -80, dy: 80 },
+        { dx: 80, dy: 80 },
+      ];
+      offsets.forEach(off => {
+        state.creatorTurrets.push({
+          x: state.player.x + off.dx,
+          y: state.player.y + off.dy,
+          life: 8 * FPS,
+          fireCD: 0,
+        });
+      });
+      state.skillsCD.q = getCooldown(char, 0).cd * FPS;
+    }
+
+    // ===== E: Ban Phước =====
+    if (key === "e") {
+      // Heal
+      state.player.hp = Math.min(state.player.maxHp, state.player.hp + 2);
+      updateHealthUI();
+
+      // Holy zone
+      state.creatorHolyZone = {
+        x: state.player.x,
+        y: state.player.y,
+        life: 6 * FPS,
+        radius: 130,
+      };
+      state.skillsCD.e = getCooldown(char, 1).cd * FPS;
+    }
+
+    // ===== R: Thiên Khải =====
+    if (key === "r") {
+      if (!state.creatorOrbs) state.creatorOrbs = [];
+      for (let i = 0; i < 6; i++) {
+        state.creatorOrbs.push({
+          angle: (i / 6) * Math.PI * 2,
+          orbitRadius: 80,
+          life: 10 * FPS,
+          fireCD: 0,
+        });
+      }
+      state.creatorDeathSave = true;
+      state.activeBuffs.r = 10 * FPS;
+      state.skillsCD.r = getCooldown(char, 2).cd * FPS;
+    }
+
+  // ===== KNIGHT (Kỵ Sĩ) =====
+  } else if (char === "knight") {
+    // ===== Q: Xung Phong =====
+    if (key === "q") {
+      const mx = state.mouse?.x || state.player.x + 100;
+      const my = state.mouse?.y || state.player.y;
+      const angle = Math.atan2(my - state.player.y, mx - state.player.x);
+
+      state.knightCharge = {
+        vx: Math.cos(angle) * 12,
+        vy: Math.sin(angle) * 12,
+        life: 15, // ~0.25s
+      };
+      state.player.gracePeriod = Math.max(state.player.gracePeriod, 15);
+
+      // Damage boss if close
+      if (state.boss) {
+        const d = dist(state.player.x, state.player.y, state.boss.x, state.boss.y);
+        if (d < 100) {
+          state.boss.hp -= 5;
+        }
+      }
+
+      state.skillsCD.q = getCooldown(char, 0).cd * FPS;
+    }
+
+    // ===== E: Khiên Phản =====
+    if (key === "e") {
+      state.knightShield = {
+        life: 3 * FPS,
+        blockedCount: 0,
+      };
+      state.player.gracePeriod = Math.max(state.player.gracePeriod, 3 * FPS);
+      state.skillsCD.e = getCooldown(char, 1).cd * FPS;
+    }
+
+    // ===== R: Cuồng Nộ =====
+    if (key === "r") {
+      state.knightRage = {
+        life: 6 * FPS,
+      };
+      state.activeBuffs.r = 6 * FPS;
+      state.skillsCD.r = getCooldown(char, 2).cd * FPS;
     }
   }
 }

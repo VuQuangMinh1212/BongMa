@@ -118,8 +118,8 @@ function renderFragmentSection(container) {
   const section = document.createElement("div");
   section.className = "fragment-section";
   section.innerHTML = `
-    <h3 style="color:#ffd700; margin-bottom:10px;">⭐ Mảnh Nguyên Liệu Boss</h3>
-    <p style="font-size:12px; color:#aaa; margin-bottom:10px;">Thu thập 5 mảnh khác nhau từ boss (10% mỗi lần hạ boss) → đổi 1 nhân vật Legendary!</p>
+    <h3 style="color:#ff0088; margin-bottom:10px;">⭐ Mảnh Nguyên Liệu Boss → MYTHICAL</h3>
+    <p style="font-size:12px; color:#aaa; margin-bottom:10px;">Thu thập 5 mảnh khác nhau từ 5 boss (10% mỗi lần hạ boss) → đổi 1 nhân vật <span style="color:#ff0088;font-weight:bold;">MYTHICAL</span>!</p>
     <div class="fragment-grid">
       ${BOSS_FRAGMENTS.map(f => {
     const owned = fragments.includes(f.id);
@@ -136,73 +136,108 @@ function renderFragmentSection(container) {
 
   const uniqueCount = new Set(fragments).size;
   const btn = document.createElement("button");
-  btn.innerText = hasAll ? "🌟 ĐỔI NHÂN VẬT LEGENDARY" : `Thiếu ${BOSS_FRAGMENTS.length - uniqueCount} mảnh`;
+  btn.innerText = hasAll ? "🌟 ĐỔI NHÂN VẬT MYTHICAL" : `Thiếu ${BOSS_FRAGMENTS.length - uniqueCount} mảnh`;
   btn.disabled = !hasAll;
   btn.style.marginTop = "10px";
   if (hasAll) {
-    btn.style.background = "linear-gradient(135deg, #ffd700, #ff8c00)";
-    btn.style.color = "#000";
+    btn.style.background = "linear-gradient(135deg, #ff0055, #ff8800, #ffdd00, #00ff88, #0088ff, #aa00ff)";
+    btn.style.backgroundSize = "300% 300%";
+    btn.style.animation = "mythicalShimmer 2s linear infinite";
+    btn.style.color = "#fff";
+    btn.style.fontWeight = "bold";
   }
   btn.onclick = () => {
     if (!hasAll) return;
-    exchangeFragmentsForLegendary();
+    exchangeFragmentsForMythical();
   };
 
   section.appendChild(btn);
   container.appendChild(section);
 }
 
-function exchangeFragmentsForLegendary() {
+function exchangeFragmentsForMythical() {
   // Clear all fragments
-  state.bossFragments = [];
-
-  // Pick a random unowned legendary, or any legendary if all owned
-  const legendaries = CHARACTERS.filter(c => c.rarity === "legendary");
-  const unowned = legendaries.filter(c => !state.ownedCharacters.includes(c.id));
-  const pool = unowned.length > 0 ? unowned : legendaries;
-  const reward = pool[Math.floor(Math.random() * pool.length)];
-
-  const alreadyOwned = state.ownedCharacters.includes(reward.id);
-  if (!alreadyOwned) {
-    state.ownedCharacters.push(reward.id);
+  if (state.bossFragments) {
+    state.bossFragments.splice(0, state.bossFragments.length);
   } else {
-    state.resources.legendary = (state.resources.legendary || 0) + 1;
+    state.bossFragments = [];
   }
 
-  saveGame(state, GHOST_DATA_KEY);
-  persistState();
+  const mythicals = CHARACTERS.filter(c => c.rarity === "mythical");
+  const unowned = mythicals.filter(c => !state.ownedCharacters.includes(c.id));
 
-  // Show result
   const overlay = document.getElementById("spinner-overlay");
   const title = document.getElementById("spinner-title");
   const result = document.getElementById("spinner-result");
-  const strip = document.getElementById("spinner-strip");
-  const closeBtn = document.getElementById("spinner-close");
   const viewport = document.getElementById("spinner-viewport");
+  const closeBtn = document.getElementById("spinner-close");
+  const strip = document.getElementById("spinner-strip");
 
   overlay.classList.remove("hidden");
   viewport.style.display = "none";
   strip.innerHTML = "";
+  closeBtn.style.display = "none";
+  result.className = "spinner-result selection-grid";
 
-  if (alreadyOwned) {
-    title.innerText = "💰 Trùng lặp!";
+  if (unowned.length > 0) {
+    title.innerText = "🌟 CHỌN NHÂN VẬT THẦN THOẠI 🌟";
     result.innerHTML = `
-      <div style="font-size:20px;color:#c084fc">${reward.name}</div>
-      <div style="font-size:16px;color:#ffd700;margin-top:8px;">+1 NL Legendary</div>
+      <p style="color:#aaa; font-size:14px; margin-bottom:15px;">Chọn 1 nhân vật bạn chưa sở hữu:</p>
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:15px; width:100%; max-height:400px; overflow-y:auto; padding:10px;">
+        ${unowned.map(c => `
+          <div class="card scroll-card scroll-mythical" style="width:100%; cursor:pointer; padding:10px; border:2px solid #333;" id="pick-${c.id}">
+            <div style="font-size:24px; margin-bottom:5px;">✨</div>
+            <div style="font-size:16px; font-weight:bold; color:#ff0088;">${c.name}</div>
+            <div style="font-size:10px; color:#aaa; margin-top:5px; height:30px; overflow:hidden;">${c.skills.map(s => s.name).join(", ")}</div>
+            <button class="btn-claim" style="margin-top:10px; padding:5px 10px; font-size:12px; background:#ff0088; color:#fff; border:none; width:100%;">NHẬN</button>
+          </div>
+        `).join("")}
+      </div>
     `;
+
+    // Attach listeners
+    unowned.forEach(c => {
+      const card = document.getElementById(`pick-${c.id}`);
+      if (card) {
+        card.onclick = () => {
+          if (state.ownedCharacters.includes(c.id)) return;
+          
+          state.ownedCharacters.push(c.id);
+          saveGame(state, GHOST_DATA_KEY);
+          persistState();
+
+          title.innerText = "🎉 CƠ DUYÊN ĐÃ ĐỊNH!";
+          result.innerHTML = `
+            <div style="font-size:40px; margin-bottom:15px;">🌟</div>
+            <div style="font-size:32px; font-weight:bold;" class="rarity-mythical">${c.name}</div>
+            <div style="font-size:18px; margin-top:15px; color:#00ffcc;">Đã sở hữu nhân vật Thần Thoại mới!</div>
+          `;
+          closeBtn.style.display = "block";
+        };
+      }
+    });
+
   } else {
-    title.innerText = "🎉 NHÂN VẬT HUYỀN THOẠI!";
-    result.innerHTML = `
-      <div style="font-size:28px;color:#c084fc;font-weight:bold;">${reward.name}</div>
-      <div style="font-size:14px;color:#c084fc;margin-top:5px;">⭐ LEGENDARY</div>
-    `;
-  }
-  result.className = "spinner-result gacha-legendary";
+    // All owned - Give compensation
+    const reward = mythicals[Math.floor(Math.random() * mythicals.length)];
+    state.player.coins = (state.player.coins || 0) + 5000;
+    state.resources.legendary = (state.resources.legendary || 0) + 1;
+    saveGame(state, GHOST_DATA_KEY);
+    persistState();
 
-  closeBtn.style.display = "block";
+    title.innerText = "💰 PHẦN THƯỞNG TRÙNG LẶP!";
+    result.innerHTML = `
+      <div style="font-size:18px;color:#ff0088;margin-bottom:10px;">${reward.name} (Đã có)</div>
+      <div style="font-size:24px;color:#ffd700;font-weight:bold;">+5000 Bạc</div>
+      <div style="font-size:20px;color:#c084fc;margin-top:5px;">+1 Vé Legendary</div>
+      <p style="font-size:12px;color:#aaa;margin-top:10px;">Bạn đã sở hữu toàn bộ Thần Thoại!</p>
+    `;
+    closeBtn.style.display = "block";
+  }
+
   closeBtn.onclick = () => {
     overlay.classList.add("hidden");
-    viewport.style.display = "";
+    viewport.style.display = ""; // Restore for random gacha
     renderShop();
   };
 }
@@ -219,6 +254,8 @@ function getRarityColor(rarity) {
       return "#60a5fa";
     case "legendary":
       return "#c084fc";
+    case "mythical":
+      return "#ff0088";
     default:
       return "#ffffff";
   }
@@ -232,6 +269,8 @@ function getRarityBg(rarity) {
       return "rgba(96,165,250,0.15)";
     case "legendary":
       return "rgba(192,132,252,0.15)";
+    case "mythical":
+      return "rgba(255,0,136,0.15)";
     default:
       return "rgba(255,255,255,0.1)";
   }
@@ -245,6 +284,8 @@ function getRarityBorder(rarity) {
       return "#3b82f6";
     case "legendary":
       return "#a855f7";
+    case "mythical":
+      return "#ff0088";
     default:
       return "#555";
   }

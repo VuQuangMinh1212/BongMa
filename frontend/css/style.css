@@ -823,6 +823,106 @@ button:disabled {
 }
 
 /* ========================================
+   MYTHICAL RARITY - RAINBOW HOLOGRAPHIC
+   ======================================== */
+
+@keyframes mythicalRainbow {
+  0% { border-color: #ff0055; box-shadow: 0 0 15px #ff0055; }
+  16% { border-color: #ff8800; box-shadow: 0 0 15px #ff8800; }
+  33% { border-color: #ffdd00; box-shadow: 0 0 15px #ffdd00; }
+  50% { border-color: #00ff88; box-shadow: 0 0 15px #00ff88; }
+  66% { border-color: #0088ff; box-shadow: 0 0 15px #0088ff; }
+  83% { border-color: #aa00ff; box-shadow: 0 0 15px #aa00ff; }
+  100% { border-color: #ff0055; box-shadow: 0 0 15px #ff0055; }
+}
+
+@keyframes mythicalTextGlow {
+  0% { color: #ff0055; text-shadow: 0 0 10px #ff0055; }
+  16% { color: #ff8800; text-shadow: 0 0 10px #ff8800; }
+  33% { color: #ffdd00; text-shadow: 0 0 10px #ffdd00; }
+  50% { color: #00ff88; text-shadow: 0 0 10px #00ff88; }
+  66% { color: #0088ff; text-shadow: 0 0 10px #0088ff; }
+  83% { color: #aa00ff; text-shadow: 0 0 10px #aa00ff; }
+  100% { color: #ff0055; text-shadow: 0 0 10px #ff0055; }
+}
+
+@keyframes mythicalShimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.spinner-item-mythical {
+  background: linear-gradient(135deg, rgba(255,0,85,0.15), rgba(170,0,255,0.15), rgba(0,136,255,0.15));
+  border-bottom: 3px solid;
+  animation: mythicalRainbow 3s linear infinite;
+}
+
+.gacha-mythical {
+  animation: mythicalTextGlow 2s linear infinite;
+  font-weight: bold;
+}
+
+.scroll-mythical {
+  animation: mythicalRainbow 3s linear infinite;
+}
+
+.scroll-mythical:hover {
+  box-shadow: 0 0 25px rgba(255, 0, 85, 0.5), 0 0 25px rgba(0, 136, 255, 0.3);
+}
+
+.scroll-mythical::before {
+  background: linear-gradient(90deg, #ff0055, #ff8800, #ffdd00, #00ff88, #0088ff, #aa00ff, #ff0055);
+  background-size: 200% 100%;
+  animation: mythicalShimmer 2s linear infinite;
+}
+
+.rarity-mythical {
+  animation: mythicalTextGlow 2.5s linear infinite;
+  font-weight: bold;
+}
+
+/* Boss Arena */
+.boss-arena-card {
+  background: #1a1a24;
+  border: 2px solid #444;
+  border-radius: 10px;
+  padding: 15px;
+  width: 140px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+}
+
+.boss-arena-card:hover {
+  border-color: #ff4444;
+  transform: translateY(-5px);
+  box-shadow: 0 5px 20px rgba(255, 68, 68, 0.3);
+}
+
+.boss-arena-icon {
+  font-size: 36px;
+  margin-bottom: 8px;
+}
+
+.boss-arena-name {
+  font-size: 14px;
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 5px;
+}
+
+.boss-arena-drop {
+  font-size: 11px;
+  color: #aaa;
+}
+
+.boss-arena-reward {
+  font-size: 11px;
+  color: #ffd700;
+  margin-top: 5px;
+}
+
+/* ========================================
    BOSS FRAGMENT EXCHANGE
    ======================================== */
 

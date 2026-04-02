@@ -6,7 +6,19 @@ import { spawnBullet, spawnBossAttack, bossSummonGhosts } from "../entities.js";
 import { updateBullets, playerTakeDamage } from "./combat.js";
 
 export function update(ctx, canvas, changeStateFn) {
-  let { player, boss, bullets, ghosts, keys, mouse, activeBuffs } = state;
+  let { player, boss, bullets, ghosts, keys, mouse, activeBuffs, delayedTasks } = state;
+
+  // Xử lý các tác vụ trì hoãn (thay thế setTimeout)
+  if (delayedTasks && delayedTasks.length > 0) {
+    for (let i = delayedTasks.length - 1; i >= 0; i--) {
+      let task = delayedTasks[i];
+      task.delay--;
+      if (task.delay <= 0) {
+        task.action();
+        delayedTasks.splice(i, 1);
+      }
+    }
+  }
 
   let buffs = activeBuffs || { q: 0, e: 0, r: 0 };
 
@@ -37,6 +49,9 @@ export function update(ctx, canvas, changeStateFn) {
   let isScoutR = player.characterId === "scout" && buffs.r > 0;
   let isTimekeeperE = player.characterId === "timekeeper" && buffs.e > 0;
   let isTimekeeperR = player.characterId === "timekeeper" && buffs.r > 0;
+  let isDestroyerR = player.characterId === "destroyer" && buffs.r > 0;
+  let isKnightR = player.characterId === "knight" && buffs.r > 0;
+  let isCreatorR = player.characterId === "creator" && buffs.r > 0;
 
   // --- ÁP DỤNG BUFF VÀO CHỈ SỐ KỸ NĂNG ---
   let isSpeedsterQ = player.characterId === "speedster" && buffs.q > 0;
@@ -51,6 +66,7 @@ export function update(ctx, canvas, changeStateFn) {
 
   if (isFrostQ) currentSpeed = 0;
   if (isReaperE) currentSpeed *= 1.5;
+  if (isDestroyerR) currentSpeed *= 1.3;
 
   let isSpeedsterE = player.characterId === "speedster" && buffs.e > 0;
   let currentFireRate = isSpeedsterE ? 4 : player.fireRate;
@@ -58,6 +74,7 @@ export function update(ctx, canvas, changeStateFn) {
   if (isBerserkerQ) currentFireRate = Math.max(2, player.fireRate * 0.65);
   if (isEngineerE) currentFireRate = Math.max(3, player.fireRate * 0.6);
   if (isScoutR) currentFireRate = Math.max(2, player.fireRate * 0.6);
+  if (isKnightR) currentFireRate = Math.max(2, player.fireRate * 0.6);
 
   let isSharpshootE = player.characterId === "sharpshooter" && buffs.e > 0;
   let currentMultiShot = player.multiShot + (isSharpshootE ? 3 : 0);
@@ -278,8 +295,25 @@ export function update(ctx, canvas, changeStateFn) {
       ) {
         playerTakeDamage(ctx, canvas, changeStateFn);
       }
+
+      // Detect Phase Transition logic for visuals
+      const ratio = boss.hp / boss.maxHp;
+      let phase = 0;
+      if (boss.phaseCount === 3) {
+        phase = ratio > 0.66 ? 0 : ratio > 0.33 ? 1 : 2;
+      } else {
+        phase = ratio > 0.5 ? 0 : 1;
+      }
+      
+      if (state.lastBossPhase !== -1 && state.lastBossPhase !== phase) {
+        state.phaseTransitionTimer = 120; // 2 seconds
+        state.currentPhaseName = `GIAI ĐOẠN ${phase + 1}`;
+      }
+      state.lastBossPhase = phase;
     }
   }
+
+  if (state.phaseTransitionTimer > 0) state.phaseTransitionTimer--;
 
   // ===== SPECIAL EFFECTS =====
   //Painter
@@ -962,7 +996,7 @@ export function update(ctx, canvas, changeStateFn) {
   // DỌN DẸP QUÁI CHẾT SẠCH SẼ & THÊM HIỆU ỨNG NỔ TUNG
   for (let i = state.ghosts.length - 1; i >= 0; i--) {
     let g = state.ghosts[i];
-    if (g.hp !== undefined && g.hp <= 0) {
+    if (g.hp !== undefined && g.hp <= 0 && !g.isRespawning) {
       if (g.x > 0) {
         state.player.coins = (state.player.coins || 0) + 2;
         if (!state.explosions) state.explosions = [];
@@ -974,9 +1008,36 @@ export function update(ctx, canvas, changeStateFn) {
           color: "rgba(255, 68, 68, 0.6)",
         }); // Nổ khi chết!
       }
-      state.ghosts.splice(i, 1);
+      g.isRespawning = true;
+      g.respawnTimer = 5 * FPS; // Tăng lên 5 giây cho rõ ràng
+      g.x = -100;
+      g.y = -100;
       continue;
     }
+    
+    if (g.isRespawning) {
+      g.respawnTimer--;
+      g.timer++;
+      
+      // Cho ma xuất hiện lại ở vị trí bản ghi trước khi thực sự hồi sinh để "cảnh báo"
+      if (g.respawnTimer < 1 * FPS) { // 1 giây cuối
+        let exactIndex = g.timer * g.speedRate;
+        let idx = Math.floor(exactIndex);
+        if (idx < g.record.length) {
+          g.x = g.record[idx][0];
+          g.y = g.record[idx][1];
+          g.flicker = true; // Flag để vẽ nhấp nháy
+        }
+      }
+
+      if (g.respawnTimer <= 0) {
+        g.isRespawning = false;
+        g.hp = undefined;
+        g.flicker = false;
+      }
+      continue;
+    }
+
     let exactIndex = g.timer * g.speedRate;
     if (
       exactIndex >= g.record.length &&
@@ -988,6 +1049,8 @@ export function update(ctx, canvas, changeStateFn) {
   }
 
   for (let g of state.ghosts) {
+    if (g.isRespawning) continue;
+
     if (!isTimeFrozen) {
       let exactIndex = g.timer * g.speedRate;
       let idx1 = Math.floor(exactIndex);
@@ -1050,6 +1113,185 @@ export function update(ctx, canvas, changeStateFn) {
 
   document.getElementById("coins-count").innerText =
     `Tiền: ${state.player?.coins || 0}`;
+
+  // ===== NEW CHARACTER UPDATES =====
+
+  // --- Destroyer: Rift lingering damage ---
+  if (state.destroyerRifts) {
+    state.destroyerRifts = state.destroyerRifts.filter(r => {
+      r.life--;
+      // Lingering damage to boss
+      if (boss && r.life % 30 === 0) {
+        const bx = boss.x, by = boss.y;
+        const dx = bx - r.x, dy = by - r.y;
+        const angle = r.angle;
+        const len = dist(r.x, r.y, r.endX, r.endY);
+        const proj = (dx * Math.cos(angle) + dy * Math.sin(angle));
+        const perpDist = Math.abs(-dx * Math.sin(angle) + dy * Math.cos(angle));
+        if (proj > 0 && proj < len && perpDist < 50) {
+          boss.hp -= 2;
+        }
+      }
+      return r.life > 0;
+    });
+  }
+
+  // --- Destroyer: Absorb buff timeout ---
+  if (state.destroyerAbsorbBuff) {
+    state.destroyerAbsorbBuff.life--;
+    if (state.destroyerAbsorbBuff.life <= 0) {
+      player.buffs.multiShot -= state.destroyerAbsorbBuff.shots;
+      state.destroyerAbsorbBuff = null;
+    }
+  }
+
+  // --- Destroyer: Ultimate (reflect bullets + area damage) ---
+  if (state.destroyerUlt) {
+    state.destroyerUlt.life--;
+    const radius = state.destroyerUlt.radius;
+
+    // Convert enemy bullets to player bullets
+    state.bullets.forEach(b => {
+      if (!b.isPlayer && dist(b.x, b.y, player.x, player.y) < radius) {
+        b.isPlayer = true;
+        b.vx *= -1;
+        b.vy *= -1;
+      }
+    });
+
+    // Area damage to boss
+    if (boss && state.destroyerUlt.life % 15 === 0) {
+      if (dist(player.x, player.y, boss.x, boss.y) < radius + boss.radius) {
+        boss.hp -= 3;
+      }
+    }
+
+    if (state.destroyerUlt.life <= 0) state.destroyerUlt = null;
+  }
+
+  // --- Creator: Turrets ---
+  if (state.creatorTurrets) {
+    state.creatorTurrets = state.creatorTurrets.filter(t => {
+      t.life--;
+      t.fireCD--;
+      if (t.fireCD <= 0) {
+        // Auto-aim at nearest target (boss or ghost)
+        let targetX = boss ? boss.x : player.x + 100;
+        let targetY = boss ? boss.y : player.y;
+
+        // Find nearest ghost if no boss
+        if (!boss && ghosts.length > 0) {
+          let nearest = ghosts[0];
+          let nd = Infinity;
+          ghosts.forEach(g => {
+            let d = dist(t.x, t.y, g.x, g.y);
+            if (d < nd) { nd = d; nearest = g; }
+          });
+          targetX = nearest.x;
+          targetY = nearest.y;
+        }
+
+        spawnBullet(t.x, t.y, targetX, targetY, true, 2, "player");
+        t.fireCD = 30; // 0.5s
+      }
+      return t.life > 0;
+    });
+  }
+
+  // --- Creator: Holy Zone ---
+  if (state.creatorHolyZone) {
+    state.creatorHolyZone.life--;
+    const zone = state.creatorHolyZone;
+
+    // Slow enemy bullets in zone
+    state.bullets.forEach(b => {
+      if (!b.isPlayer && dist(b.x, b.y, zone.x, zone.y) < zone.radius) {
+        b.vx *= 0.3;
+        b.vy *= 0.3;
+      }
+    });
+
+    if (zone.life <= 0) state.creatorHolyZone = null;
+  }
+
+  // --- Creator: Orbs ---
+  if (state.creatorOrbs) {
+    state.creatorOrbs = state.creatorOrbs.filter(orb => {
+      orb.life--;
+      orb.angle += 0.03;
+      orb.fireCD--;
+      if (orb.fireCD <= 0) {
+        // Target nearest (Boss or ghost)
+        let target = boss;
+        if (!target || target.hp <= 0) {
+            let nd = Infinity;
+            ghosts.forEach(g => {
+                let d = dist(player.x, player.y, g.x, g.y);
+                if (d < nd) { nd = d; target = g; }
+            });
+        }
+        
+        if (target) {
+            const ox = player.x + Math.cos(orb.angle) * orb.orbitRadius;
+            const oy = player.y + Math.sin(orb.angle) * orb.orbitRadius;
+            spawnBullet(ox, oy, target.x, target.y, true, 3, "player");
+            orb.fireCD = 40;
+        }
+      }
+      return orb.life > 0;
+    });
+    if (state.creatorOrbs.length === 0) {
+      state.creatorDeathSave = false;
+    }
+  }
+
+  // --- Knight: Charge ---
+  if (state.knightCharge) {
+    state.knightCharge.life--;
+    player.x += state.knightCharge.vx;
+    player.y += state.knightCharge.vy;
+    // Clamp
+    player.x = Math.max(player.radius, Math.min(800 - player.radius, player.x));
+    player.y = Math.max(player.radius, Math.min(600 - player.radius, player.y));
+
+    // Damage boss on impact
+    if (boss && dist(player.x, player.y, boss.x, boss.y) < boss.radius + player.radius + 20) {
+      boss.hp -= 3;
+    }
+
+    if (state.knightCharge.life <= 0) state.knightCharge = null;
+  }
+
+  // --- Knight: Shield reflect ---
+  if (state.knightShield) {
+    state.knightShield.life--;
+    // Block bullets and count them
+    state.bullets = state.bullets.filter(b => {
+      if (!b.isPlayer && dist(b.x, b.y, player.x, player.y) < 40) {
+        state.knightShield.blockedCount++;
+        return false;
+      }
+      return true;
+    });
+
+    if (state.knightShield.life <= 0) {
+      // Counter-attack: 8 bullets in all directions
+      for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        spawnBullet(player.x, player.y,
+          player.x + Math.cos(angle) * 100,
+          player.y + Math.sin(angle) * 100,
+          true, 2, "player");
+      }
+      state.knightShield = null;
+    }
+  }
+
+  // --- Knight: Rage (CDR on hit) ---
+  if (state.knightRage) {
+    state.knightRage.life--;
+    if (state.knightRage.life <= 0) state.knightRage = null;
+  }
 
   if (!state.isBossLevel && state.frameCount >= state.maxFramesToSurvive) {
     return "STAGE_CLEAR";

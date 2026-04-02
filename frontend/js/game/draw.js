@@ -75,9 +75,53 @@ export function draw(ctx, canvas) {
       ctx.lineWidth = 15;
       ctx.stroke();
     }
-  }
+  } else if (char === "destroyer") {
+    // ===== Q: Laser Rifts =====
+    if (state.destroyerRifts) {
+      state.destroyerRifts.forEach((r) => {
+        const opacity = r.life / (5 * 60);
+        ctx.beginPath();
+        ctx.moveTo(r.x, r.y);
+        ctx.lineTo(r.endX, r.endY);
+        ctx.strokeStyle = `rgba(255, 0, 100, ${opacity})`;
+        ctx.lineWidth = 15;
+        ctx.stroke();
 
-  if (player.characterId === "storm") {
+        ctx.strokeStyle = `rgba(255, 255, 255, ${opacity * 0.8})`;
+        ctx.lineWidth = 4;
+        ctx.stroke();
+      });
+    }
+
+    // ===== E: Absorb Field UI =====
+    if (state.destroyerAbsorb) {
+      const field = state.destroyerAbsorb;
+      const pulse = Math.sin(state.frameCount * 0.2) * 10;
+      const alpha = (field.life / 60) * 0.3; // Fade out as life ends
+      
+      ctx.beginPath();
+      ctx.arc(player.x, player.y, field.radius + pulse, 0, Math.PI * 2);
+      
+      // Outer glow
+      ctx.strokeStyle = `rgba(180, 0, 255, ${alpha})`;
+      ctx.lineWidth = 8;
+      ctx.stroke();
+      
+      // Inner fill
+      ctx.fillStyle = `rgba(100, 0, 200, ${alpha * 0.5})`;
+      ctx.fill();
+      
+      // Rotating ring lines
+      for(let i=0; i<4; i++) {
+          let a = (state.frameCount * 0.05 + i * (Math.PI/2));
+          ctx.beginPath();
+          ctx.arc(player.x, player.y, field.radius + pulse - 5, a, a + 0.8);
+          ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+      }
+    }
+  } else if (char === "creator") {
     if (state.stormLightnings) {
       for (let i = state.stormLightnings.length - 1; i >= 0; i--) {
         let l = state.stormLightnings[i];
@@ -648,7 +692,13 @@ export function draw(ctx, canvas) {
   }
   // --- Boss ---
   if (boss) {
-    const phase = boss.hp <= boss.maxHp / 2 ? 1 : 0;
+    let phase;
+    const ratio = boss.hp / boss.maxHp;
+    if (boss.phaseCount === 3) {
+      phase = ratio > 0.66 ? 0 : ratio > 0.33 ? 1 : 2;
+    } else {
+      phase = ratio > 0.5 ? 0 : 1;
+    }
     const phaseColor = boss.phaseColors?.[phase] || {
       start: boss.color,
       end: boss.color,
@@ -900,6 +950,171 @@ export function draw(ctx, canvas) {
       ctx.lineWidth = 2;
       ctx.stroke();
     }
+  }
+  // ===== NEW CHARACTER VFX =====
+
+  // --- Destroyer: Rift ---
+  if (state.destroyerRifts) {
+    state.destroyerRifts.forEach(r => {
+      const alpha = Math.min(1, r.life / 60);
+      ctx.strokeStyle = `rgba(255, 0, 80, ${alpha * 0.8})`;
+      ctx.lineWidth = 8 + Math.sin(state.frameCount * 0.1) * 3;
+      ctx.shadowBlur = 20;
+      ctx.shadowColor = "#ff0055";
+      ctx.beginPath();
+      ctx.moveTo(r.x, r.y);
+      ctx.lineTo(r.endX, r.endY);
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+    });
+  }
+
+  // --- Destroyer: Ult aura ---
+  if (state.destroyerUlt) {
+    const pulse = Math.sin(state.frameCount * 0.15) * 15;
+    const radius = state.destroyerUlt.radius + pulse;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, radius, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255, 0, 80, 0.6)`;
+    ctx.lineWidth = 3;
+    ctx.shadowBlur = 30;
+    ctx.shadowColor = "#ff0055";
+    ctx.stroke();
+    ctx.fillStyle = `rgba(255, 0, 80, 0.08)`;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  // --- Destroyer: E aura ---
+  if (player.characterId === "destroyer" && buffs.e > 0) {
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.radius + 10, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(255, 0, 80, 0.5)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // --- Creator: Turrets ---
+  if (state.creatorTurrets) {
+    state.creatorTurrets.forEach(t => {
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, 10, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255, 220, 100, 0.8)";
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = "#ffdd00";
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      // Line to player
+      ctx.beginPath();
+      ctx.moveTo(player.x, player.y);
+      ctx.lineTo(t.x, t.y);
+      ctx.strokeStyle = "rgba(255, 220, 100, 0.15)";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    });
+  }
+
+  // --- Creator: Holy Zone ---
+  if (state.creatorHolyZone) {
+    const z = state.creatorHolyZone;
+    const alpha = Math.min(1, z.life / 60);
+    ctx.beginPath();
+    ctx.arc(z.x, z.y, z.radius, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(255, 255, 200, ${alpha * 0.1})`;
+    ctx.strokeStyle = `rgba(255, 220, 100, ${alpha * 0.5})`;
+    ctx.lineWidth = 2;
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // --- Creator: Orbs ---
+  if (state.creatorOrbs) {
+    state.creatorOrbs.forEach(orb => {
+      const ox = player.x + Math.cos(orb.angle) * orb.orbitRadius;
+      const oy = player.y + Math.sin(orb.angle) * orb.orbitRadius;
+      ctx.beginPath();
+      ctx.arc(ox, oy, 8, 0, Math.PI * 2);
+      ctx.fillStyle = "#ffffaa";
+      ctx.shadowBlur = 15;
+      ctx.shadowColor = "#ffdd00";
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    });
+  }
+
+  // --- Knight: Charge trail ---
+  if (state.knightCharge) {
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.radius + 15, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(0, 200, 255, 0.7)";
+    ctx.lineWidth = 4;
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = "#00ccff";
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  // --- Knight: Shield ---
+  if (state.knightShield) {
+    const shieldPulse = Math.sin(state.frameCount * 0.2) * 3;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, 35 + shieldPulse, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(100, 200, 255, 0.8)";
+    ctx.lineWidth = 4;
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = "#00aaff";
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  // --- Knight: Rage aura ---
+  if (state.knightRage) {
+    const pulse = Math.sin(state.frameCount * 0.3) * 5;
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, player.radius + 8 + pulse, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255, 100, 0, 0.6)`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // Scout Q Visual Effect
+  if (state.isScoutQ) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, 150, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.4)";
+    ctx.lineWidth = 15;
+    ctx.stroke();
+    
+    for(let i=0; i<3; i++) {
+        let a = (state.frameCount * 0.1 + i) * Math.PI * 0.6;
+        ctx.beginPath();
+        ctx.arc(player.x, player.y, 150, a, a + 0.5);
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 4;
+        ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Boss Phase Transition Effect
+  if (state.phaseTransitionTimer > 0) {
+    let alpha = (Math.sin(state.frameCount * 0.2) * 0.1) + 0.1;
+    ctx.fillStyle = `rgba(255, 0, 0, ${alpha})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.save();
+    ctx.font = "bold 60px sans-serif";
+    ctx.fillStyle = "#ff4444";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = "black";
+    ctx.shadowBlur = 10;
+    ctx.fillText(state.currentPhaseName, canvas.width/2, canvas.height/2);
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 2;
+    ctx.strokeText(state.currentPhaseName, canvas.width/2, canvas.height/2);
+    ctx.restore();
   }
 
   ctx.beginPath();

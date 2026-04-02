@@ -1,5 +1,5 @@
 import { state } from "../state.js";
-import { FPS, GHOST_DATA_KEY, UPGRADES, BOSS_REWARDS, BOSS_FRAGMENTS, BOSS_FRAGMENT_DROP_RATE } from "../config.js";
+import { FPS, GHOST_DATA_KEY, UPGRADES, BOSS_REWARDS, BOSS_FRAGMENTS, BOSS_FRAGMENT_DROP_RATE, BOSS_ARENA_REWARDS } from "../config.js";
 import { saveGame } from "../utils.js";
 import { UI, updateHealthUI, updateXPUI, generateCards } from "../ui.js";
 import { generateDummy } from "../entities.js";
@@ -87,6 +87,10 @@ export function initGame(isNextLevel = false) {
   state.player.dashTimeLeft = 0;
 
   state.bullets = [];
+  
+  // Xoá các kĩ năng, projectile cũ để ko bị lưu qua màn mới
+  resetSkillsState();
+
   state.currentRunRecord = [];
   state.frameCount = 0;
   state.scoreTime = 0;
@@ -140,6 +144,7 @@ export function initGame(isNextLevel = false) {
     const selectedBossType = bossTypes[bossIndex];
 
     state.boss = createBoss(selectedBossType);
+    state.currentBossType = selectedBossType;
 
     UI.bossUi.style.display = "block";
     UI.bossName.innerText = state.boss.name;
@@ -282,21 +287,25 @@ export function nextStage(gameLoopFn) {
 function tryBossFragmentDrop() {
   if (Math.random() >= BOSS_FRAGMENT_DROP_RATE) return;
 
-  // Find fragments the player doesn't own yet
+  // Determine which boss was killed to drop the correct fragment
+  const bossType = state.currentBossType || state.boss?.bossType;
+  if (!bossType) return;
+
+  // Find the fragment that corresponds to this boss type
+  const fragment = BOSS_FRAGMENTS.find(f => f.bossType === bossType);
+  if (!fragment) return;
+
   const owned = state.bossFragments || [];
-  const missing = BOSS_FRAGMENTS.filter(f => !owned.includes(f.id));
+  // Only drop if player doesn't already have this fragment
+  if (owned.includes(fragment.id)) return;
 
-  if (missing.length === 0) return; // Already has all 5
-
-  // Pick a random missing fragment
-  const drop = missing[Math.floor(Math.random() * missing.length)];
-  state.bossFragments.push(drop.id);
+  state.bossFragments.push(fragment.id);
 
   saveGame(state, GHOST_DATA_KEY);
   persistState();
 
   // Show drop notification
-  showFragmentDrop(drop);
+  showFragmentDrop(fragment);
 }
 
 function showFragmentDrop(fragment) {
@@ -307,14 +316,152 @@ function showFragmentDrop(fragment) {
   const name = document.getElementById("fragment-drop-name");
   const count = document.getElementById("fragment-drop-count");
   const closeBtn = document.getElementById("fragment-drop-close");
+  const descEl = overlay.querySelector('p[style*="color:#888"]');
 
   icon.innerText = fragment.icon;
   name.innerText = fragment.name;
   count.innerText = `${state.bossFragments.length} / ${BOSS_FRAGMENTS.length} mảnh`;
+  if (descEl) descEl.innerText = 'Thu thập 5 mảnh khác nhau để đổi 1 nhân vật MYTHICAL!';
 
   overlay.classList.remove("hidden");
 
   closeBtn.onclick = () => {
     overlay.classList.add("hidden");
   };
+}
+
+// ========== BOSS ARENA (Chọn boss để farm) ==========
+export async function openBossArena(changeStateFn, gameLoopFn) {
+  const overlay = document.getElementById("screen-boss-arena");
+  if (!overlay) return;
+  overlay.classList.remove("hidden");
+  document.getElementById("screen-main").classList.add("hidden");
+
+  const container = document.getElementById("boss-arena-cards");
+  container.innerHTML = "";
+
+  const { BOSS_TYPES } = await import("../entities.js");
+  const bossKeys = Object.keys(BOSS_TYPES);
+
+  bossKeys.forEach(key => {
+    const cfg = BOSS_TYPES[key];
+    const frag = BOSS_FRAGMENTS.find(f => f.bossType === key);
+    const reward = BOSS_ARENA_REWARDS[key] || { coins: 100, rareTicket: 0.1 };
+    const owned = (state.bossFragments || []).includes(frag?.id);
+
+    const card = document.createElement("div");
+    card.className = "boss-arena-card";
+    card.style.borderColor = cfg.color;
+    card.innerHTML = `
+      <div class="boss-arena-icon">${cfg.icon || '👹'}</div>
+      <div class="boss-arena-name" style="color:${cfg.color}">${cfg.name}</div>
+      <div class="boss-arena-drop">${frag ? `${frag.icon} ${frag.name} ${owned ? '✅' : ''}` : ''}</div>
+      <div class="boss-arena-reward">💰 ${reward.coins} | 🎟️ ${Math.round(reward.rareTicket * 100)}%</div>
+      <div style="font-size:10px;color:#666;margin-top:4px;">${cfg.phaseCount || 2} Phase | HP: ${cfg.hp}</div>
+    `;
+
+    card.onclick = () => {
+      overlay.classList.add("hidden");
+      startBossArenaFight(key, changeStateFn, gameLoopFn);
+    };
+
+    container.appendChild(card);
+  });
+}
+
+
+export function startBossArenaFight(bossType, changeStateFn, gameLoopFn) {
+  state.bossArenaMode = true;
+  state.bossArenaType = bossType;
+  initGame(false);
+
+  // Override to boss level
+  state.isBossLevel = true;
+  state.maxFramesToSurvive = 999999;
+  state.currentBossType = bossType;
+  state.boss = createBoss(bossType);
+  state.ghosts = [];
+
+  UI.bossUi.style.display = "block";
+  UI.bossName.innerText = state.boss.name;
+  UI.bossHp.style.width = "100%";
+  UI.timer.innerText = "BOSS ARENA";
+
+  changeState("PLAYING", gameLoopFn);
+}
+
+export function handleBossArenaReward(gameLoopFn) {
+  const bossType = state.bossArenaType;
+  const reward = BOSS_ARENA_REWARDS[bossType] || { coins: 100, rareTicket: 0.1 };
+
+  // Give coins
+  state.player.coins = (state.player.coins || 0) + reward.coins;
+
+  let gotTicket = false;
+  // Chance for rare ticket (adds a free rare scroll resource)
+  if (Math.random() < reward.rareTicket) {
+    state.resources = state.resources || { common: 0, rare: 0, legendary: 0 };
+    state.resources.common = (state.resources.common || 0) + 5; // 5 common = 1 rare scroll
+    gotTicket = true;
+  }
+
+  // Cập nhật UI Thưởng
+  document.getElementById("arena-coins-reward").innerText = `💰 +${reward.coins} Tiền`;
+  document.getElementById("arena-rare-reward").innerText = gotTicket ? `🎫 +5 Nguyên liệu (Common)` : "";
+  document.getElementById("screen-arena-victory").classList.remove("hidden");
+
+  // Nút quay lại menu
+  document.getElementById("btn-arena-victory-back").onclick = () => {
+    document.getElementById("screen-arena-victory").classList.add("hidden");
+    state.bossArenaMode = false;
+    state.bossArenaType = null;
+    saveGame(state, GHOST_DATA_KEY);
+    persistState();
+    window.location.reload(); // Reload để về menu chính sạch sẽ
+  };
+
+  // Try fragment drop
+  tryBossFragmentDrop();
+}
+
+/**
+ * Reset sạch sẽ toàn bộ trạng thái kĩ năng của tất cả nhân vật
+ */
+export function resetSkillsState() {
+  state.activeBuffs = { q: 0, e: 0, r: 0 };
+  state.delayedTasks = []; // Xoá bỏ sạch các setTimeout cũ đã chuyển đổi
+
+  state.phoenixTrails = [];
+  state.phoenixEfx = null;
+  state.phoenixReviveReady = false;
+  state.necroMinions = [];
+  state.necroZone = null;
+  state.necroExplosions = [];
+  state.voidBlackholes = [];
+  state.voidLaser = null;
+  state.stormTraps = [];
+  state.stormLightnings = [];
+  state.explosions = [];
+  state.druidOrbs = [];
+  state.phantoms = [];
+  state.painterTrails = [];
+  state.painterZones = [];
+  state.painterBomb = null;
+  state.painterExplosions = [];
+  state.hunterTraps = [];
+  state.engineerTurrets = [];
+  state.gunnerMines = [];
+  state.gunnerAirstrikes = [];
+  state.gunnerLaser = null;
+  state.reaperSlash = null;
+  state.destroyerRifts = [];
+  state.destroyerUlt = null;
+  state.creatorTurrets = [];
+  state.creatorHolyZone = null;
+  state.creatorOrbs = [];
+  state.creatorDeathSave = false;
+  state.knightCharge = null;
+
+  // Cập nhật lại UI kĩ năng (CD và Border)
+  import("./skills.js").then(m => m.updateSkillsUI());
 }

@@ -2,40 +2,55 @@ export const FPS = 60;
 export const GHOST_DATA_KEY = "AsynchronousEchoes_V4";
 
 // 5 mảnh nguyên liệu đặc biệt rớt từ Boss (10% mỗi lần hạ boss)
-// Thu thập đủ 5 mảnh khác nhau → đổi 1 nhân vật Legendary bất kỳ
+// Mỗi boss rớt đúng 1 loại fragment riêng biệt
+// Thu thập đủ 5 mảnh khác nhau → đổi 1 nhân vật MYTHICAL bất kỳ
 export const BOSS_FRAGMENTS = [
   {
     id: "frag_fire",
     name: "Mảnh Lửa",
     icon: "🔥",
-    desc: "Mảnh nguyên liệu từ boss lửa",
+    desc: "Mảnh nguyên liệu từ Fire Lord",
+    bossType: "fireBoss",
   },
   {
     id: "frag_ice",
     name: "Mảnh Băng",
     icon: "❄️",
-    desc: "Mảnh nguyên liệu từ boss băng",
+    desc: "Mảnh nguyên liệu từ Ice Queen",
+    bossType: "iceBoss",
   },
   {
     id: "frag_storm",
     name: "Mảnh Sấm",
     icon: "⚡",
-    desc: "Mảnh nguyên liệu từ boss sấm",
+    desc: "Mảnh nguyên liệu từ Thunder King",
+    bossType: "thunderBoss",
   },
   {
     id: "frag_shadow",
-    name: "Mảnh Bóng Tối",
-    icon: "🌑",
-    desc: "Mảnh nguyên liệu từ boss bóng tối",
+    name: "Mảnh Đất",
+    icon: "🪨",
+    desc: "Mảnh nguyên liệu từ Earth Titan",
+    bossType: "earthBoss",
   },
   {
     id: "frag_spirit",
-    name: "Mảnh Linh Hồn",
-    icon: "👻",
-    desc: "Mảnh nguyên liệu từ boss linh hồn",
+    name: "Mảnh Gió",
+    icon: "🌪️",
+    desc: "Mảnh nguyên liệu từ Wind Spirit",
+    bossType: "windBoss",
   },
 ];
 export const BOSS_FRAGMENT_DROP_RATE = 0.1; // 10% chance
+
+// Phần thưởng khi farm boss trong Arena
+export const BOSS_ARENA_REWARDS = {
+  fireBoss: { coins: 150, rareTicket: 0.15 },
+  iceBoss: { coins: 130, rareTicket: 0.12 },
+  thunderBoss: { coins: 180, rareTicket: 0.18 },
+  earthBoss: { coins: 200, rareTicket: 0.20 },
+  windBoss: { coins: 160, rareTicket: 0.15 },
+};
 
 export const UPGRADES = [
   {
@@ -889,6 +904,96 @@ export const CHARACTERS = [
       },
     ],
   },
+  // ===== NEW MYTHICAL =====
+  {
+    id: "destroyer",
+    name: "Thần Hủy Diệt",
+    rarity: "mythical",
+    baseStats: { hp: 4, speed: 5.3, fireRate: 14, multiShot: 2, bounces: 1 },
+    skills: [
+      {
+        key: "q",
+        name: "Vết Nứt",
+        desc: "Rạch laser tới con trỏ, gây sát thương liên tục trên đường bay. Tạo vùng dư chấn 5s.",
+        cooldown: 8,
+        initialCooldown: 0,
+      },
+      {
+        key: "e",
+        name: "Hấp Thụ",
+        desc: "Hút toàn bộ đạn địch bán kính lớn. Mỗi 5 đạn = +1 multishot trong 6s. Miễn sát thương 1s.",
+        cooldown: 10,
+        initialCooldown: 0,
+      },
+      {
+        key: "r",
+        name: "Hủy Diệt",
+        desc: "8s: vùng hủy diệt bám theo người chơi, biến đạn địch thành đạn ta, gây sát thương diện rộng, +30% tốc độ.",
+        cooldown: 60,
+        initialCooldown: 15,
+      },
+    ],
+  },
+  {
+    id: "creator",
+    name: "Thần Sáng Thế",
+    rarity: "mythical",
+    baseStats: { hp: 5, speed: 5.0, fireRate: 13, multiShot: 3, bounces: 0 },
+    skills: [
+      {
+        key: "q",
+        name: "Sáng Tạo",
+        desc: "Tạo ra 4 tháp canh tự bắn tại 4 góc xung quanh bạn trong 8s. Tháp bắn tự dẫn.",
+        cooldown: 12,
+        initialCooldown: 0,
+      },
+      {
+        key: "e",
+        name: "Ban Phước",
+        desc: "Hồi 2 HP, tạo vùng thánh địa tại chỗ trong 6s: đạn ta trong vùng gây x2 sát thương, đạn địch bị chậm 70%.",
+        cooldown: 18,
+        initialCooldown: 0,
+      },
+      {
+        key: "r",
+        name: "Thiên Khải",
+        desc: "10s: Triệu hồi 6 quả cầu ánh sáng bay quanh, tự bắn đạn tự dẫn vào kẻ địch. Miễn nhiễm 1 đòn chí tử.",
+        cooldown: 55,
+        initialCooldown: 15,
+      },
+    ],
+  },
+  // ===== NEW RARE =====
+  {
+    id: "knight",
+    name: "Kỵ Sĩ",
+    price: 450,
+    rarity: "rare",
+    baseStats: { hp: 5, speed: 4.5, fireRate: 16, multiShot: 1, bounces: 1 },
+    skills: [
+      {
+        key: "q",
+        name: "Xung Phong",
+        desc: "Lao tới con trỏ, gây sát thương và knockback quái. Miễn sát thương khi lao.",
+        cooldown: 7,
+        initialCooldown: 0,
+      },
+      {
+        key: "e",
+        name: "Khiên Phản",
+        desc: "Dựng khiên 3s chặn mọi sát thương. Khi hết phản đòn bắn 8 đạn ra xung quanh.",
+        cooldown: 14,
+        initialCooldown: 0,
+      },
+      {
+        key: "r",
+        name: "Cuồng Nộ",
+        desc: "6s: mỗi đòn trúng giảm 0.3s hồi Q,E. Tốc bắn +40%, đạn gây thêm sát thương.",
+        cooldown: 45,
+        initialCooldown: 20,
+      },
+    ],
+  },
 ];
 
 export const BOSS_REWARDS = [
@@ -955,3 +1060,5 @@ export const SCROLLS = [
     },
   },
 ];
+
+// Mythical CHỈ ghép được từ 5 Boss Fragment, KHÔNG có vòng quay.

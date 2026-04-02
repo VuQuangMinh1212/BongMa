@@ -226,7 +226,13 @@ export function updateBossUI() {
 
   if (!boss || !boss.phaseColors) return;
 
-  const phase = boss.hp <= boss.maxHp / 2 ? 1 : 0;
+  const ratio = boss.hp / boss.maxHp;
+  let phase;
+  if (boss.phaseCount === 3) {
+    phase = ratio > 0.66 ? 0 : ratio > 0.33 ? 1 : 2;
+  } else {
+    phase = ratio > 0.5 ? 0 : 1;
+  }
 
   // Check if the phase has changed
   if (boss.currentPhase !== phase) {
