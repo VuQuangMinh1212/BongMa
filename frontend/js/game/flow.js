@@ -290,6 +290,30 @@ function tryBossFragmentDrop() {
   const bossType = state.currentBossType || state.boss?.bossType;
   if (!bossType) return;
 
+  if (bossType === "omni") {
+    if (Math.random() < 0.20) { // 20% Tỉ lệ rớt cả 5 mảnh
+      let gotNew = false;
+      BOSS_FRAGMENTS.forEach(frag => {
+        if (!state.bossFragments.includes(frag.id)) {
+          state.bossFragments.push(frag.id);
+          gotNew = true;
+        }
+      });
+
+      if (gotNew) {
+        state.lastDroppedFragment = { icon: "🌟", name: "TRỌN BỘ 5 NGUYÊN TỐ" };
+        playSound("fragment");
+        if (typeof UI !== 'undefined' && UI.showFragmentToast) {
+          UI.showFragmentToast(state.lastDroppedFragment);
+        }
+        saveGame(state, GHOST_DATA_KEY);
+        persistState();
+        showFragmentDrop(state.lastDroppedFragment);
+      }
+    }
+    return; // Nếu xịt 20% thì về tay không
+  }
+
   // Find the fragment that corresponds to this boss type
   const fragment = BOSS_FRAGMENTS.find(f => f.bossType === bossType);
   if (!fragment) return;

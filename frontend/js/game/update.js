@@ -442,8 +442,11 @@ export function update(ctx, canvas, changeStateFn) {
 
       // Detect Phase Transition logic for visuals
       const ratio = boss.hp / boss.maxHp;
+
       let phase = 0;
-      if (boss.phaseCount === 3) {
+      if (boss.phaseCount === 5) {
+        phase = ratio > 0.8 ? 0 : ratio > 0.6 ? 1 : ratio > 0.4 ? 2 : ratio > 0.2 ? 3 : 4;
+      } else if (boss.phaseCount === 3) {
         phase = ratio > 0.66 ? 0 : ratio > 0.33 ? 1 : 2;
       } else {
         phase = ratio > 0.5 ? 0 : 1;
@@ -1376,6 +1379,33 @@ export function update(ctx, canvas, changeStateFn) {
       }
     } else {
       if (g.x > 0) activeGhosts++;
+    }
+
+    if (g.isSubBoss) {
+      activeGhosts++;
+      if (g.isStunned > 0) {
+        g.isStunned--;
+      } else {
+        // AI: Từ từ áp sát người chơi
+        let angle = Math.atan2(player.y - g.y, player.x - g.x);
+        g.x += Math.cos(angle) * g.speedRate;
+        g.y += Math.sin(angle) * g.speedRate;
+
+        // Lưu vết để vẽ (chống lỗi crash)
+        g.historyPath.push({ x: g.x, y: g.y });
+        if (g.historyPath.length > 8) g.historyPath.shift();
+
+        // AI: Xả đạn mỗi giây
+        if (state.frameCount % 60 === 0) {
+          spawnBullet(g.x, g.y, player.x, player.y, false, g.color === "#ff4400" ? 1 : 2, "ghost", 1.5);
+        }
+
+        // Gây sát thương nếu chạm vào người chơi
+        if (!isInvulnerable && dist(g.x, g.y, player.x, player.y) < player.radius + g.radius - 2) {
+          import("./combat.js").then(m => m.playerTakeDamage(ctx, canvas, changeStateFn));
+        }
+      }
+      continue; // Bỏ qua logic đọc Record của ghost thường
     }
   }
 
