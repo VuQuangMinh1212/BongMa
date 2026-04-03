@@ -352,6 +352,35 @@ export const SPECIAL_SKILLS = {
     state.globalHazard = { type: "electric", active: true, timer: 600, damage: 1.5 };
     spawnSafeZone(Math.random() * 800, Math.random() * 600, 250, 600, { vx: 1, vy: 1 });
   },
+
+  "ABSOLUTE DOMINATION": (boss) => {
+    boss.ultimatePhase = true;
+    state.screenShake.timer = 180; // Rung màn hình cực mạnh lúc chuyển form
+    state.screenShake.intensity = 15;
+    state.screenShake.type = 'thunder';
+    state.globalHazard = { type: "electric", active: true, timer: 9999, damage: 1.0 };
+
+    // Mỗi Boss phụ có 20% máu của Boss chính (600 HP)
+    const cloneHp = boss.maxHp * 0.2;
+
+    // Triệu hồi 2 Phân thân (Sub-Boss) thông qua mảng Ghosts
+    for (let i = 0; i < 2; i++) {
+      state.ghosts.push({
+        isSubBoss: true, // Cờ đánh dấu AI đặc biệt
+        x: i === 0 ? 200 : 600,
+        y: 200,
+        radius: 35,
+        hp: cloneHp,
+        maxHp: cloneHp,
+        color: i === 0 ? "#ff4400" : "#00ffff", // Trái là Hỏa, Phải là Băng
+        timer: 0,
+        isStunned: 0,
+        speedRate: 1.5,
+        record: [], // Không xài record
+        historyPath: []
+      });
+    }
+  },
 };
 
 export const BOSS_TYPES = {
@@ -403,6 +432,18 @@ export const BOSS_TYPES = {
       { attackModes: [12, 13], special: "Chain Lightning", speedMult: 1.5 },
       // THÊM MỚI:
       { attackModes: [11, 13], ultimate: "HEAVEN'S WRATH", speedMult: 1.8 }
+    ]
+  },
+  "omni": {
+    name: "Chúa Tể Nguyên Tố",
+    hp: 3000, maxHp: 3000, speed: 2.5, color: "#ffffff", originalColor: "#ffffff", elementColor: "#ff00ff", icon: "👑",
+    phaseCount: 5,
+    phases: [
+      { attackModes: [1, 21], special: "Inferno Pulse", speedMult: 1.0 }, // Phase 1: Lửa + Gió
+      { attackModes: [6, 16], special: "Frost Nova", speedMult: 1.2 },    // Phase 2: Băng + Đất
+      { attackModes: [0, 11], special: "Tesla Field", speedMult: 1.4 },   // Phase 3: Lửa + Sấm
+      { attackModes: [8, 13, 23], special: "Vacuum Wave", speedMult: 1.6 }, // Phase 4: Băng + Sấm + Gió
+      { attackModes: [4, 12, 18], ultimate: "ABSOLUTE DOMINATION", speedMult: 2.0 } // Phase 5: Hỗn Mang
     ]
   }
 };
@@ -517,10 +558,23 @@ export function updateBoss(boss) {
 }
 
 function getBossPhase(boss) {
-  const r = boss.hp / boss.maxHp;
-  if (r > 0.6) return 0;
-  if (r > 0.3) return 1;
-  return 2;
+  if (!boss || !boss.maxHp) return 0;
+  const r = (boss.hp || 0) / boss.maxHp;
+
+  if (boss.phaseCount === 5) {
+    if (r > 0.8) return 0;
+    if (r > 0.6) return 1;
+    if (r > 0.4) return 2;
+    if (r > 0.2) return 3;
+    return 4; // Giai đoạn cuối
+  }
+
+  if (boss.phaseCount === 3) {
+    if (r > 0.6) return 0;
+    if (r > 0.3) return 1;
+    return 2;
+  }
+  return r > 0.5 ? 0 : 1;
 }
 
 export const ATTACK_MODES = {
