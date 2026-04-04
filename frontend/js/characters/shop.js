@@ -163,7 +163,7 @@ function exchangeFragmentsForMythical() {
     state.bossFragments = [];
   }
 
-  const mythicals = CHARACTERS.filter(c => c.rarity === "mythical");
+  const mythicals = CHARACTERS.filter(c => c.rarity === "mythical" && c.id !== "elementalist");
   const unowned = mythicals.filter(c => !state.ownedCharacters.includes(c.id));
 
   const overlay = document.getElementById("spinner-overlay");
@@ -180,42 +180,20 @@ function exchangeFragmentsForMythical() {
   result.className = "spinner-result selection-grid";
 
   if (unowned.length > 0) {
-    title.innerText = "🌟 CHỌN NHÂN VẬT THẦN THOẠI 🌟";
+    // TÍNH NĂNG MỚI: CHỌN NGẪU NHIÊN 1 TƯỚNG MYTHICAL CHƯA CÓ
+    const winnerChar = unowned[Math.floor(Math.random() * unowned.length)];
+
+    state.ownedCharacters.push(winnerChar.id);
+    saveGame(state, GHOST_DATA_KEY);
+    persistState();
+
+    title.innerText = "🎉 CƠ DUYÊN ĐÃ ĐỊNH!";
     result.innerHTML = `
-      <p style="color:#aaa; font-size:14px; margin-bottom:15px;">Chọn 1 nhân vật bạn chưa sở hữu:</p>
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:15px; width:100%; max-height:400px; overflow-y:auto; padding:10px;">
-        ${unowned.map(c => `
-          <div class="card scroll-card scroll-mythical" style="width:100%; cursor:pointer; padding:10px; border:2px solid #333;" id="pick-${c.id}">
-            <div style="font-size:24px; margin-bottom:5px;">✨</div>
-            <div style="font-size:16px; font-weight:bold; color:#ff0088;">${c.name}</div>
-            <div style="font-size:10px; color:#aaa; margin-top:5px; height:30px; overflow:hidden;">${c.skills.map(s => s.name).join(", ")}</div>
-            <button class="btn-claim" style="margin-top:10px; padding:5px 10px; font-size:12px; background:#ff0088; color:#fff; border:none; width:100%;">NHẬN</button>
-          </div>
-        `).join("")}
-      </div>
+      <div style="font-size:40px; margin-bottom:15px;">🌟</div>
+      <div style="font-size:32px; font-weight:bold;" class="rarity-mythical">${winnerChar.name}</div>
+      <div style="font-size:18px; margin-top:15px; color:#00ffcc;">Đã nhận được nhân vật Thần Thoại ngẫu nhiên!</div>
     `;
-
-    // Attach listeners
-    unowned.forEach(c => {
-      const card = document.getElementById(`pick-${c.id}`);
-      if (card) {
-        card.onclick = () => {
-          if (state.ownedCharacters.includes(c.id)) return;
-          
-          state.ownedCharacters.push(c.id);
-          saveGame(state, GHOST_DATA_KEY);
-          persistState();
-
-          title.innerText = "🎉 CƠ DUYÊN ĐÃ ĐỊNH!";
-          result.innerHTML = `
-            <div style="font-size:40px; margin-bottom:15px;">🌟</div>
-            <div style="font-size:32px; font-weight:bold;" class="rarity-mythical">${c.name}</div>
-            <div style="font-size:18px; margin-top:15px; color:#00ffcc;">Đã sở hữu nhân vật Thần Thoại mới!</div>
-          `;
-          closeBtn.style.display = "block";
-        };
-      }
-    });
+    closeBtn.style.display = "block";
 
   } else {
     // All owned - Give compensation
@@ -230,10 +208,16 @@ function exchangeFragmentsForMythical() {
       <div style="font-size:18px;color:#ff0088;margin-bottom:10px;">${reward.name} (Đã có)</div>
       <div style="font-size:24px;color:#ffd700;font-weight:bold;">+5000 Bạc</div>
       <div style="font-size:20px;color:#c084fc;margin-top:5px;">+1 Vé Legendary</div>
-      <p style="font-size:12px;color:#aaa;margin-top:10px;">Bạn đã sở hữu toàn bộ Thần Thoại!</p>
+      <p style="font-size:12px;color:#aaa;margin-top:10px;">Bạn đã sở hữu toàn bộ Thần Thoại trong Gacha!</p>
     `;
     closeBtn.style.display = "block";
   }
+
+  overlay.onclick = (e) => {
+    if ((e.target === overlay || e.target === result) && closeBtn.style.display === "block") {
+      closeBtn.click();
+    }
+  };
 
   closeBtn.onclick = () => {
     overlay.classList.add("hidden");
@@ -261,41 +245,6 @@ function getRarityColor(rarity) {
   }
 }
 
-function getRarityBg(rarity) {
-  switch (rarity) {
-    case "common":
-      return "rgba(74,222,128,0.15)";
-    case "rare":
-      return "rgba(96,165,250,0.15)";
-    case "legendary":
-      return "rgba(192,132,252,0.15)";
-    case "mythical":
-      return "rgba(255,0,136,0.15)";
-    default:
-      return "rgba(255,255,255,0.1)";
-  }
-}
-
-function getRarityBorder(rarity) {
-  switch (rarity) {
-    case "common":
-      return "#22c55e";
-    case "rare":
-      return "#3b82f6";
-    case "legendary":
-      return "#a855f7";
-    case "mythical":
-      return "#ff0088";
-    default:
-      return "#555";
-  }
-}
-
-/**
- * Build a pool of characters for the spinner strip
- * We create a long strip with ~30 items, seeded so the winning item
- * lands near the end (at a fixed position).
- */
 function buildSpinnerPool(winnerChar, scrollRarity, probabilities) {
   const pool = [];
   const totalSlots = 32;
@@ -449,6 +398,12 @@ function startSpinner(scrollRarity, probabilities) {
 
     saveGame(state, GHOST_DATA_KEY);
     persistState();
+
+    overlay.onclick = (e) => {
+      if ((e.target === overlay || e.target === resultDiv) && closeBtn.style.display === "block") {
+        closeBtn.click();
+      }
+    };
 
     closeBtn.style.display = "block";
     closeBtn.onclick = () => {

@@ -274,6 +274,8 @@ export function nextStage(gameLoopFn) {
   saveGame(state, GHOST_DATA_KEY);
   persistState();
   if (state.isBossLevel) {
+
+    checkOmniBossUnlock()
     // 10% chance to drop a boss fragment
     tryBossFragmentDrop();
     changeState("BOSS_REWARD", gameLoopFn);
@@ -429,10 +431,10 @@ export function handleBossArenaReward(gameLoopFn) {
   state.player.coins = (state.player.coins || 0) + reward.coins;
 
   let gotTicket = false;
-  // Chance for rare ticket (adds a free rare scroll resource)
+  // Chance for rare ticket
   if (Math.random() < reward.rareTicket) {
     state.resources = state.resources || { common: 0, rare: 0, legendary: 0 };
-    state.resources.common = (state.resources.common || 0) + 5; // 5 common = 1 rare scroll
+    state.resources.common = (state.resources.common || 0) + 5;
     gotTicket = true;
   }
 
@@ -440,7 +442,7 @@ export function handleBossArenaReward(gameLoopFn) {
   document.getElementById("arena-coins-reward").innerText = `💰 +${reward.coins} Tiền`;
   document.getElementById("arena-rare-reward").innerText = gotTicket ? `🎫 +5 Nguyên liệu (Common)` : "";
 
-  // Show Fragment Info in Arena Victory Screen
+  // Show Fragment Info...
   const fragInfo = document.getElementById("arena-fragment-reward") || { innerText: "" };
   if (state.lastDroppedFragment) {
     fragInfo.innerText = `✨ NHẬN ĐƯỢC: ${state.lastDroppedFragment.icon} ${state.lastDroppedFragment.name}`;
@@ -450,19 +452,18 @@ export function handleBossArenaReward(gameLoopFn) {
   }
 
   document.getElementById("screen-arena-victory").classList.remove("hidden");
-  state.gameState = "MENU"; // Freeze loop for reward screen
+  state.gameState = "MENU";
 
-  // Nút quay lại menu
   document.getElementById("btn-arena-victory-back").onclick = () => {
     document.getElementById("screen-arena-victory").classList.add("hidden");
     state.bossArenaMode = false;
     state.bossArenaType = null;
     saveGame(state, GHOST_DATA_KEY);
     persistState();
-    window.location.reload(); // Reload để về menu chính sạch sẽ
+    window.location.reload();
   };
 
-  // Try fragment drop
+  checkOmniBossUnlock(); // <--- THÊM DÒNG NÀY VÀO ĐÂY
   tryBossFragmentDrop();
 }
 
@@ -526,7 +527,30 @@ export function resetSkillsState() {
     fieldBurn: 0
   };
   state.windForce = { x: 0, y: 0, timer: 0 };
-
   // Cập nhật lại UI kĩ năng (CD và Border)
   import("./skills.js").then(m => m.updateSkillsUI());
+
+
+}
+
+function checkOmniBossUnlock() {
+  const bossType = state.currentBossType || state.boss?.bossType || state.bossArenaType;
+
+  // Nếu Boss vừa hạ là Omni
+  if (bossType === "omni") {
+    if (!state.ownedCharacters) state.ownedCharacters = ["speedster"];
+
+    // Nếu chưa sở hữu Elementalist thì mở khóa
+    if (!state.ownedCharacters.includes("elementalist")) {
+      state.ownedCharacters.push("elementalist");
+
+      saveGame(state, GHOST_DATA_KEY);
+      persistState();
+
+      // Hiển thị thông báo (Sử dụng setTimeout để tránh bị đè UI)
+      setTimeout(() => {
+        alert("👑 CHÚC MỪNG! Bạn đã hạ gục Chúa Tể Nguyên Tố và mở khóa nhân vật độc quyền: NGUYÊN TỐ SƯ! 👑");
+      }, 500);
+    }
+  }
 }

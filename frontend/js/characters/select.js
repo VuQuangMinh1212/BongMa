@@ -201,4 +201,31 @@ export function setupMenuButtons(openShopFn, changeStateFn) {
     openCharacterSelect(changeStateFn);
   document.getElementById("btn-shop-back").onclick = closeShopOrSelect;
   document.getElementById("btn-char-back").onclick = closeShopOrSelect;
+
+  window.addEventListener("click", (e) => {
+    const screenShop = document.getElementById("screen-shop");
+    const screenChar = document.getElementById("screen-char-select");
+
+    if (screenShop && !screenShop.classList.contains("hidden")) {
+      if (e.target.closest("#btn-shop")) return;
+
+      if (e.target === screenShop || e.target.id === "shop-cards") {
+        if (e.target.id === "shop-cards" && e.offsetX > e.target.clientWidth) {
+          return;
+        }
+        closeShopOrSelect();
+      }
+    }
+
+    if (screenChar && !screenChar.classList.contains("hidden")) {
+      if (e.target.closest("#btn-select-character")) return;
+
+      if (e.target === screenChar || e.target.id === "char-cards") {
+        if (e.target.id === "char-cards" && e.offsetX > e.target.clientWidth) {
+          return;
+        }
+        closeShopOrSelect();
+      }
+    }
+  });
 }

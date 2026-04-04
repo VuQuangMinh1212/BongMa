@@ -998,7 +998,8 @@ export const CHARACTERS = [
   {
     id: "elementalist",
     name: "Nguyên Tố Sư",
-    price: 900,
+    unlockCondition: "omni_boss",
+    desc: "Vượt qua thử thách của Chúa Tể Nguyên Tố (Omni) để mở khóa.",
     rarity: "mythical",
     baseStats: { hp: 4, speed: 5, fireRate: 15, multiShot: 1, bounces: 1 },
     skills: [
