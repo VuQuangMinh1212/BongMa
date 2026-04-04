@@ -1514,7 +1514,7 @@ export function update(ctx, canvas, changeStateFn) {
       if (
         state.boss &&
         dist(ic.x, ic.y, state.boss.x, state.boss.y) <
-          state.boss.radius + ic.radius
+        state.boss.radius + ic.radius
       ) {
         state.boss.hp -= 2;
       }
@@ -1577,9 +1577,16 @@ export function update(ctx, canvas, changeStateFn) {
       }
     });
   }
+
   if (boss && boss.hp <= 0 && !state._bossKilled) {
     state.player.coins = (state.player.coins || 0) + 100;
     state._bossKilled = true;
+
+    // THÊM DÒNG NÀY: Xóa ngay lập tức thanh gồng chiêu khi Boss chết
+    if (state.bossSpecial) {
+      state.bossSpecial.timer = 0;
+      state.bossSpecial.name = "";
+    }
   }
 
   if (state._bossKilled) {
@@ -1889,7 +1896,7 @@ export function update(ctx, canvas, changeStateFn) {
     if (
       boss &&
       dist(player.x, player.y, boss.x, boss.y) <
-        boss.radius + player.radius + 20
+      boss.radius + player.radius + 20
     ) {
       boss.hp -= 3;
     }

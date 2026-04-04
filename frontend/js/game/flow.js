@@ -518,6 +518,8 @@ export function resetSkillsState() {
 
   state.screenShake = { timer: 0, intensity: 0, type: 'earth' };
 
+  state.bossSpecial = { name: "", timer: 0, duration: 0, type: "", color: "" };
+
   state.cinematicEffects = {
     fogAlpha: 0,
     distortion: 0,
