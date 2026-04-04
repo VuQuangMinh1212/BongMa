@@ -2,7 +2,13 @@ import { state } from "../state.js";
 import { FPS } from "../config.js";
 import { dist } from "../utils.js";
 import { UI, updateHealthUI } from "../ui.js";
-import { spawnBullet, updateBoss, bossSummonGhosts } from "../entities.js";
+import {
+  spawnBullet,
+  updateBoss,
+  bossSummonGhosts,
+  ATTACK_MODES,
+  SPECIAL_SKILLS,
+} from "../entities.js";
 import { updateBullets, playerTakeDamage } from "./combat.js";
 
 export function update(ctx, canvas, changeStateFn) {
@@ -28,7 +34,6 @@ export function update(ctx, canvas, changeStateFn) {
       }
     }
   }
-
   let buffs = activeBuffs || { q: 0, e: 0, r: 0 };
 
   // ===== TẤT CẢ BUFF FLAGS =====
@@ -163,7 +168,31 @@ export function update(ctx, canvas, changeStateFn) {
     dx /= len;
     dy /= len;
   }
+  //Glitch
+  if (state.glitch.invertControls) {
+    dx *= -1;
+    dy *= -1;
+  }
+  if (state.glitch.stepMode && !boss?.entityPhase) {
+    if (dx !== 0 || dy !== 0) {
+      if (state.glitch.stepCooldown <= 0) {
+        player.x += dx * currentSpeed;
+        player.y += dy * currentSpeed;
 
+        if (state.glitch.stepShoot) {
+          state.glitch.stepShoot();
+        }
+
+        state.glitch.stepCooldown = 10;
+      }
+    }
+
+    if (state.glitch.stepCooldown > 0) {
+      state.glitch.stepCooldown--;
+    }
+
+    return;
+  }
   if (
     keys["space"] &&
     player.dashCooldownTimer <= 0 &&
@@ -206,7 +235,6 @@ export function update(ctx, canvas, changeStateFn) {
 
   // --- Elemental interactions & Hazards ---
   state.hazards.forEach((h) => {
-
     // Terrain Collision (Earth Spikes/Barriers)
     if (h.type === "rock" && h.active) {
       const dxh = player.x - h.x;
@@ -314,7 +342,8 @@ export function update(ctx, canvas, changeStateFn) {
         }
       });
 
-      let tx = mouse.x, ty = mouse.y;
+      let tx = mouse.x,
+        ty = mouse.y;
       if (targetObj) {
         tx = targetObj.x;
         ty = targetObj.y;
@@ -328,7 +357,13 @@ export function update(ctx, canvas, changeStateFn) {
 
       for (let i = 0; i < count; i++) {
         let a = startAngle + i * spread;
-        spawnBullet(player.x, player.y, player.x + Math.cos(a) * 10, player.y + Math.sin(a) * 10, true);
+        spawnBullet(
+          player.x,
+          player.y,
+          player.x + Math.cos(a) * 10,
+          player.y + Math.sin(a) * 10,
+          true,
+        );
       }
 
       for (let i = oldLen; i < state.bullets.length; i++) {
@@ -345,7 +380,13 @@ export function update(ctx, canvas, changeStateFn) {
 
       for (let i = 0; i < count; i++) {
         let a = startAngle + i * spread;
-        spawnBullet(player.x, player.y, player.x + Math.cos(a) * 10, player.y + Math.sin(a) * 10, true);
+        spawnBullet(
+          player.x,
+          player.y,
+          player.x + Math.cos(a) * 10,
+          player.y + Math.sin(a) * 10,
+          true,
+        );
       }
 
       if (isSniperQ) {
@@ -435,12 +476,117 @@ export function update(ctx, canvas, changeStateFn) {
     }
   }
 
-  // --- Boss Logic ---
-  if (state.boss && state.boss.hp > 0) {
-    updateBoss(state.boss);
+  // =========================
+  // 🔥 BOSS + ENTITY SYSTEM
+  // =========================
+
+  // ===== 1. NORMAL BOSS UPDATE =====
+  if (boss && !boss.entityPhase) {
+    updateBoss(boss);
+  }
+
+  // ===== 2. TRIGGER ENTITY =====
+  if (boss && boss.hp <= 0 && !boss.entityTriggered) {
+    boss.entityPhase = true;
+    boss.entityTriggered = true;
+
+    boss.hp = boss.maxHp = 999999;
+    boss.entityTimer = 40 * FPS;
+
+    boss.phase2Triggered = false;
+    boss.phase3Triggered = false;
+    boss.phase4Triggered = false;
+
+    boss.name = "The Entity";
+    boss.color = "#ffffff";
+
+    state.screenShake.timer = 30;
+    state.screenShake.intensity = 12;
+
+    state.bullets = [];
+    state.delayedTasks = [];
+
+    state.glitch.invertControls = false;
+    state.glitch.stepMode = false;
+    state.glitch.matrixMode = false;
+
+    return;
+  }
+
+  // ===== 3. ENTITY PHASE =====
+  if (boss && boss.entityPhase) {
+    boss.entityTimer--;
+
+    let time = boss.entityTimer;
+
+    // ===== PHASE 1: RAIN (40 → 30s) =====
+    if (time > 30 * FPS) {
+      if (state.frameCount % 15 === 0) {
+        ATTACK_MODES[42]();
+      }
+    }
+
+    // ===== PHASE 2: GLITCH (30 → 20s) =====
+    else if (time > 20 * FPS) {
+      if (!boss.phase2Triggered) {
+        SPECIAL_SKILLS.ENTITY_GLITCH(boss);
+        boss.phase2Triggered = true;
+      }
+
+      if (state.frameCount % 40 === 0) {
+        ATTACK_MODES[41](boss);
+      }
+    }
+
+    // ===== PHASE 3: ABSOLUTE NULL (20 → 10s) =====
+    else if (time > 10 * FPS) {
+      if (!boss.phase3Triggered) {
+        SPECIAL_SKILLS.ABSOLUTE_NULL(boss);
+        boss.phase3Triggered = true;
+      }
+
+      if (state.frameCount % 20 === 0) {
+        ATTACK_MODES[43]();
+      }
+    }
+
+    // ===== PHASE 4: FINAL OVERLOAD (10 → 0s) =====
+    else {
+      if (!boss.phase4Triggered) {
+        SPECIAL_SKILLS.ENTITY_OVERLOAD(boss);
+        boss.phase4Triggered = true;
+      }
+
+      // spam thêm để tăng áp lực
+      if (state.frameCount % 10 === 0) {
+        ATTACK_MODES[43]();
+      }
+    }
+
+    // ===== GLOBAL EFFECT =====
+    state.glitch.matrixMode = true;
+
+    if (state.frameCount % 10 === 0) {
+      state.screenShake.timer = 5;
+      state.screenShake.intensity = 4;
+    }
+
+    // ===== END ENTITY =====
+    if (boss.entityTimer <= 0) {
+      state.player.coins = (state.player.coins || 0) + 100;
+
+      state.boss = null;
+      state.isBossLevel = false;
+
+      state.glitch.matrixMode = false;
+      state.glitch.stepMode = false;
+      state.glitch.invertControls = false;
+
+      return "BOSS_KILLED";
+    }
   }
   if (!isTimeFrozen) {
-    if (boss) {
+    if (state.glitch.stepMode && !boss?.entityPhase) {
       if (!boss.ghostsActive) {
         if (boss.summonCooldown > 0) boss.summonCooldown--;
         if (boss.summonCooldown <= 0) {
@@ -462,11 +608,25 @@ export function update(ctx, canvas, changeStateFn) {
       }
 
       // Detect Phase Transition logic for visuals
-      const ratio = boss.hp / boss.maxHp;
+
+      let ratio = 1;
+
+      if (!boss.entityPhase) {
+        ratio = boss.hp / boss.maxHp;
+      }
 
       let phase = 0;
       if (boss.phaseCount === 5) {
-        phase = ratio > 0.8 ? 0 : ratio > 0.6 ? 1 : ratio > 0.4 ? 2 : ratio > 0.2 ? 3 : 4;
+        phase =
+          ratio > 0.8
+            ? 0
+            : ratio > 0.6
+              ? 1
+              : ratio > 0.4
+                ? 2
+                : ratio > 0.2
+                  ? 3
+                  : 4;
       } else if (boss.phaseCount === 3) {
         phase = ratio > 0.66 ? 0 : ratio > 0.33 ? 1 : 2;
       } else {
@@ -1514,7 +1674,7 @@ export function update(ctx, canvas, changeStateFn) {
       if (
         state.boss &&
         dist(ic.x, ic.y, state.boss.x, state.boss.y) <
-        state.boss.radius + ic.radius
+          state.boss.radius + ic.radius
       ) {
         state.boss.hp -= 2;
       }
@@ -1578,22 +1738,6 @@ export function update(ctx, canvas, changeStateFn) {
     });
   }
 
-  if (boss && boss.hp <= 0 && !state._bossKilled) {
-    state.player.coins = (state.player.coins || 0) + 100;
-    state._bossKilled = true;
-
-    // THÊM DÒNG NÀY: Xóa ngay lập tức thanh gồng chiêu khi Boss chết
-    if (state.bossSpecial) {
-      state.bossSpecial.timer = 0;
-      state.bossSpecial.name = "";
-    }
-  }
-
-  if (state._bossKilled) {
-    state._bossKilled = false;
-    return "BOSS_KILLED";
-  }
-
   let activeGhosts = 0;
 
   // DỌN DẸP QUÁI CHẾT SẠCH SẼ & THÊM HIỆU ỨNG NỔ TUNG
@@ -1601,7 +1745,8 @@ export function update(ctx, canvas, changeStateFn) {
     let g = state.ghosts[i];
 
     // 1. Kiểm tra điều kiện quái bị trúng đòn (Hết HP hoặc bị Choáng)
-    let isHit = (g.hp !== undefined && g.hp <= 0) || (!g.isSubBoss && g.isStunned > 0);
+    let isHit =
+      (g.hp !== undefined && g.hp <= 0) || (!g.isSubBoss && g.isStunned > 0);
 
     if (isHit && !g.isRespawning) {
       // Hiệu ứng nổ tại vị trí vừa chết
@@ -1609,7 +1754,11 @@ export function update(ctx, canvas, changeStateFn) {
         state.player.coins = (state.player.coins || 0) + 2;
         if (!state.explosions) state.explosions = [];
         state.explosions.push({
-          x: g.x, y: g.y, radius: 15, life: 10, color: "rgba(255, 68, 68, 0.6)",
+          x: g.x,
+          y: g.y,
+          radius: 15,
+          life: 10,
+          color: "rgba(255, 68, 68, 0.6)",
         });
       }
 
@@ -1729,12 +1878,26 @@ export function update(ctx, canvas, changeStateFn) {
 
         // AI: Xả đạn mỗi giây
         if (state.frameCount % 60 === 0) {
-          spawnBullet(g.x, g.y, player.x, player.y, false, g.color === "#ff4400" ? 1 : 2, "ghost", 1.5);
+          spawnBullet(
+            g.x,
+            g.y,
+            player.x,
+            player.y,
+            false,
+            g.color === "#ff4400" ? 1 : 2,
+            "ghost",
+            1.5,
+          );
         }
 
         // Gây sát thương nếu chạm vào người chơi
-        if (!isInvulnerable && dist(g.x, g.y, player.x, player.y) < player.radius + g.radius - 2) {
-          import("./combat.js").then(m => m.playerTakeDamage(ctx, canvas, changeStateFn));
+        if (
+          !isInvulnerable &&
+          dist(g.x, g.y, player.x, player.y) < player.radius + g.radius - 2
+        ) {
+          import("./combat.js").then((m) =>
+            m.playerTakeDamage(ctx, canvas, changeStateFn),
+          );
         }
       }
       continue; // Bỏ qua logic đọc Record của ghost thường
@@ -1904,7 +2067,7 @@ export function update(ctx, canvas, changeStateFn) {
     if (
       boss &&
       dist(player.x, player.y, boss.x, boss.y) <
-      boss.radius + player.radius + 20
+        boss.radius + player.radius + 20
     ) {
       boss.hp -= 3;
     }

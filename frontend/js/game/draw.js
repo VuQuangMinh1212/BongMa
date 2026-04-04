@@ -380,7 +380,7 @@ export function draw(ctx, canvas) {
   });
 
   // --- Draw Boss Beams (Lightning) TỐI ƯU ---
-  state.bossBeams.forEach(beam => {
+  state.bossBeams.forEach((beam) => {
     ctx.save();
     if (beam.state === "charge") {
       ctx.strokeStyle = "rgba(255, 255, 255, 0.2)";
@@ -407,6 +407,51 @@ export function draw(ctx, canvas) {
     ctx.restore();
   });
 
+  if (boss && boss.entityPhase) {
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(boss.x - 25, boss.y - 25, 50, 50);
+
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.ellipse(boss.x, boss.y, 12, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  if (boss.entityPhase) {
+    ctx.fillStyle = "#fff";
+    ctx.font = "20px monospace";
+    ctx.fillText("SURVIVE: " + Math.ceil(boss.entityTimer / 60), 20, 40);
+  }
+  if (state.glitch.matrixMode) {
+    for (let i = 0; i < 40; i++) {
+      let x = Math.random() * canvas.width;
+      let y = Math.random() * canvas.height;
+
+      ctx.fillStyle = `rgba(0,255,0,${Math.random() * 0.15})`;
+      ctx.fillRect(x, y, 2, 10);
+    }
+  }
+  // decoy boss
+  if (state.glitch.decoys) {
+    state.glitch.decoys.forEach((d) => {
+      ctx.globalAlpha = 0.3;
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(d.x - 20, d.y - 20, 40, 40);
+    });
+    ctx.globalAlpha = 1;
+  }
+  // 🔥 overload overlay
+  if (state.glitch.matrixMode && Math.random() < 0.3) {
+    ctx.fillStyle = "rgba(255,255,255,0.05)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // 💻 glitch lines
+  for (let i = 0; i < 10; i++) {
+    if (Math.random() < 0.2) {
+      ctx.fillStyle = "#0f0";
+      ctx.fillRect(0, Math.random() * canvas.height, canvas.width, 2);
+    }
+  }
   if (char === "timekeeper") {
     if (buffs.e > 0) {
       ctx.fillStyle = "rgba(0, 255, 255, 0.1)";
@@ -1137,7 +1182,7 @@ export function draw(ctx, canvas) {
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
   }
-  if (boss) {
+  if (boss && !boss.entityPhase) {
     let phase;
     const ratio = boss.hp / boss.maxHp;
     if (boss.phaseCount === 3) {
@@ -1983,7 +2028,6 @@ export function draw(ctx, canvas) {
   }
   if (!state.particles) state.particles = [];
 
-
   // --- Knight: Shield ---
   if (state.knightShield) {
     const shieldPulse = Math.sin(state.frameCount * 0.2) * 3;
@@ -2077,6 +2121,11 @@ export function draw(ctx, canvas) {
   // Effect Helpers
   if (state.boss && state.boss.ultimatePhase) {
     drawSuctionParticles(ctx);
+  }
+  if (state.glitch.fakeUI) {
+    ctx.fillStyle = "red";
+    ctx.font = "30px monospace";
+    ctx.fillText("ERROR: INPUT CORRUPTED", 200, 300);
   }
 }
 

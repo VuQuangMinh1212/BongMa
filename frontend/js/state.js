@@ -16,6 +16,18 @@ export const state = {
   painterZones: [],
   painterDrawing: false,
   painterDrawTime: 0,
+  //Glitch
+  glitch: {
+    invertControls: false,
+    fakeUI: false,
+    matrixMode: false,
+    stepMode: false,
+    stepCooldown: 0,
+
+    // thêm
+    decoys: [],
+    stepShoot: null,
+  },
   pastRuns: [],
   currentRunRecord: [],
   ownedCharacters: ["speedster"],
@@ -162,3 +174,15 @@ export const state = {
     wind: "#00ffcc",
   },
 };
+
+export function resetGlitchState() {
+  state.glitch = {
+    invertControls: false,
+    fakeUI: false,
+    matrixMode: false,
+    stepMode: false,
+    stepCooldown: 0,
+    decoys: [],
+    stepShoot: null,
+  };
+}
