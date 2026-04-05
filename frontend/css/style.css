@@ -28,8 +28,8 @@ h1 {
 
 #game-container {
   position: relative;
-  width: 800px;
-  height: 600px;
+  width: 1536px;
+  height: 864px;
 }
 
 canvas {

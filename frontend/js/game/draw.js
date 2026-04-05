@@ -416,7 +416,7 @@ export function draw(ctx, canvas) {
     ctx.ellipse(boss.x, boss.y, 12, 6, 0, 0, Math.PI * 2);
     ctx.fill();
   }
-  if (boss.entityPhase) {
+  if (boss && boss.entityPhase) {
     ctx.fillStyle = "#fff";
     ctx.font = "20px monospace";
     ctx.fillText("SURVIVE: " + Math.ceil(boss.entityTimer / 60), 20, 40);
