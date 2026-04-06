@@ -1,8 +1,10 @@
-import { state } from "./state.js";
-import { spawnBullet, spawnHazard, spawnBeam, spawnWarning, spawnMeteor } from "./entity_helpers.js";
-import { dist } from "./utils.js";
+import { state } from "../../state.js";
+import { spawnBullet, spawnHazard, spawnBeam, spawnWarning, spawnMeteor } from "../helpers.js";
+import { dist } from "../../utils.js";
 
 const TAU = Math.PI * 2;
+
+export function activateShield(boss, amount) { }
 
 // Helper bắn theo góc
 function fireAngle(sx, sy, angle, style = 0, source = "boss", damage = 1) {

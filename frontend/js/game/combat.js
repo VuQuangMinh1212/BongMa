@@ -3,7 +3,8 @@ import { FPS } from "../config.js";
 import { dist } from "../utils.js";
 import { UI, updateHealthUI, updateXPUI } from "../ui.js";
 import { playSound } from "./audio.js";
-import { spawnHazard, spawnSatelliteDrone } from "../entities.js";
+import { spawnSatelliteDrone } from "../world/element.js";
+import { spawnHazard } from "../entities/helpers.js";
 
 export function playerTakeDamage(ctx, canvas, changeStateFn, amount = 1) {
   if (state.player.isInvincible) return; // FIX I-FRAMES
@@ -468,17 +469,17 @@ export function updateBullets(
                     opacity: 1,
                     life: 100
                   });
-                  
+
                   // Hiệu ứng Mission Clear bằng loạt nổ màu Cyan
                   if (!state.explosions) state.explosions = [];
                   for (let i = 0; i < 15; i++) {
-                      state.explosions.push({
-                        x: zone.x + (Math.random() - 0.5) * zone.radius * 1.5,
-                        y: zone.y + (Math.random() - 0.5) * zone.radius * 1.5,
-                        radius: 60,
-                        life: 45,
-                        color: "rgba(0, 255, 255, 0.8)" 
-                      });
+                    state.explosions.push({
+                      x: zone.x + (Math.random() - 0.5) * zone.radius * 1.5,
+                      y: zone.y + (Math.random() - 0.5) * zone.radius * 1.5,
+                      radius: 60,
+                      life: 45,
+                      color: "rgba(0, 255, 255, 0.8)"
+                    });
                   }
                 }
               }

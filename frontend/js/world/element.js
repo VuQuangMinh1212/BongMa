@@ -1,3 +1,7 @@
+import { state } from "../state.js";
+import { FPS } from "../config.js";
+import { dist } from "../utils.js";
+
 export function spawnCrate() {
     const maxCrates = 10;
     if (state.crates.length >= maxCrates) return;
@@ -159,4 +163,16 @@ export function spawnCrystal(x, y, rewardType) {
         life: 60 * 30, // Tồn tại 30s
         pulse: 0
     });
+}
+
+export function spawnSatelliteDrone() {
+    state.satelliteDrone = {
+        x: state.player.x,
+        y: state.player.y,
+        timer: 60 * FPS, // 60 giây
+        lastFireTime: 0,
+        angle: 0,
+        orbitRadius: 80,
+        orbitSpeed: 0.05
+    };
 }

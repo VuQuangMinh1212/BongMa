@@ -1,6 +1,26 @@
-import { state } from "./state.js";
-import { FPS } from "./config.js";
-import { SPECIAL_SKILLS, ATTACK_MODES } from "./boss_patterns.js";
+import { state } from "../../state.js";
+import { FPS } from "../../config.js";
+import { SPECIAL_SKILLS, ATTACK_MODES } from "./patterns.js";
+
+function getBossPhase(boss) {
+    if (!boss || !boss.maxHp) return 0;
+    const r = (boss.hp || 0) / boss.maxHp;
+
+    if (boss.phaseCount === 5) {
+        if (r > 0.8) return 0;
+        if (r > 0.6) return 1;
+        if (r > 0.4) return 2;
+        if (r > 0.2) return 3;
+        return 4; // Giai đoạn cuối
+    }
+
+    if (boss.phaseCount === 3) {
+        if (r > 0.6) return 0;
+        if (r > 0.3) return 1;
+        return 2;
+    }
+    return r > 0.5 ? 0 : 1;
+}
 
 export const BOSS_TYPES = {
     fire: {

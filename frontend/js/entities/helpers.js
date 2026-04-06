@@ -1,4 +1,4 @@
-import { state } from "./state.js";
+import { state } from "../state.js";
 
 // Các hàm bổ trợ cốt lõi cho việc tạo vật thể trong game
 export function spawnBullet(sx, sy, tx, ty, isPlayer, style = 0, source = "enemy", damage = 1) {

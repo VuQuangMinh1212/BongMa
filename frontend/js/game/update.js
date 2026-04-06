@@ -2,16 +2,11 @@ import { state } from "../state.js";
 import { FPS } from "../config.js";
 import { dist } from "../utils.js";
 import { UI, updateHealthUI } from "../ui.js";
-import {
-  spawnBullet,
-  updateBoss,
-  bossSummonGhosts,
-  ATTACK_MODES,
-  SPECIAL_SKILLS,
-  spawnCrate,
-  spawnCrystal,
-  spawnSatelliteDrone,
-} from "../entities.js";
+import { bossSummonGhosts } from "../entities.js";
+import { ATTACK_MODES, SPECIAL_SKILLS } from "../entities/bosses/patterns.js";
+import { updateBoss } from "../entities/bosses/boss_manager.js";
+import { spawnBullet } from "../entities/helpers.js";
+import { spawnSatelliteDrone, spawnCrate, spawnCrystal } from "../world/element.js";
 import { updateBullets, playerTakeDamage, triggerNuke, applyCaptureReward, addExperience } from "./combat.js";
 
 export function update(ctx, canvas, changeStateFn) {

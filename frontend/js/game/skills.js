@@ -1,8 +1,9 @@
 import { state } from "../state.js";
-import { FPS, CHARACTERS } from "../config.js";
+import { FPS } from "../config.js";
+import { CHARACTERS } from "../characters/data.js";
 import { dist } from "../utils.js";
 import { UI, updateHealthUI } from "../ui.js";
-import { spawnBullet } from "../entities.js";
+import { spawnBullet } from "../entities/helpers.js";
 import { addExperience } from "./combat.js";
 
 export function ensureSkillsUI() {
@@ -273,7 +274,7 @@ function triggerSkill(key, canvas, changeStateFn) {
       if (
         state.boss &&
         distToLine({ x: state.boss.x, y: state.boss.y }, p1, p2) <
-          state.boss.radius + 15
+        state.boss.radius + 15
       )
         state.boss.hp -= 15;
     }
@@ -491,7 +492,7 @@ function triggerSkill(key, canvas, changeStateFn) {
       if (
         state.boss &&
         dist(state.player.x, state.player.y, state.boss.x, state.boss.y) <
-          150 + state.boss.radius
+        150 + state.boss.radius
       ) {
         let a = Math.atan2(
           state.boss.y - state.player.y,
@@ -557,7 +558,7 @@ function triggerSkill(key, canvas, changeStateFn) {
       if (state.boss) {
         nearestDist = Math.sqrt(
           (state.player.x - state.boss.x) ** 2 +
-            (state.player.y - state.boss.y) ** 2,
+          (state.player.y - state.boss.y) ** 2,
         );
         targetObj = state.boss;
       }
@@ -710,7 +711,7 @@ function triggerSkill(key, canvas, changeStateFn) {
       if (
         state.boss &&
         dist(state.player.x, state.player.y, state.boss.x, state.boss.y) <
-          radius + state.boss.radius
+        radius + state.boss.radius
       )
         state.boss.hp -= dmg;
 
