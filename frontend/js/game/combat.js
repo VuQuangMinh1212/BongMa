@@ -3,7 +3,7 @@ import { FPS } from "../config.js";
 import { dist } from "../utils.js";
 import { UI, updateHealthUI, updateXPUI } from "../ui.js";
 import { playSound } from "./audio.js";
-import { spawnHazard } from "../entities.js";
+import { spawnHazard, spawnSatelliteDrone } from "../entities.js";
 
 export function playerTakeDamage(ctx, canvas, changeStateFn, amount = 1) {
   if (state.player.isInvincible) return; // FIX I-FRAMES
@@ -670,3 +670,75 @@ export function destroyCrate(crate, index, changeStateFn) {
 
   state.crates.splice(index, 1);
 }
+
+export function triggerNuke() {
+  // 🎥 Rung màn hình cực đại
+  if (!state.screenShake) state.screenShake = { timer: 0, intensity: 0 };
+  state.screenShake.timer = 60;
+  state.screenShake.intensity = 25;
+
+  // 💥 Tiêu diệt toàn bộ kẻ thù (trừ boss có thể chỉ mất máu lớn)
+  state.ghosts.forEach((g) => {
+    g.hp = 0;
+  });
+  if (state.boss) {
+    state.boss.hp -= state.boss.maxHp * 0.3; // Boss mất 30% máu
+  }
+
+  // 🧹 Xóa toàn bộ đạn của địch
+  state.bullets = state.bullets.filter((b) => b.isPlayer);
+
+  // 🎨 Hiệu ứng nổ trắng bao phủ toàn map
+  if (!state.explosions) state.explosions = [];
+  state.explosions.push({
+    x: state.player.x,
+    y: state.player.y,
+    radius: 3000,
+    life: 40,
+    color: "rgba(255, 255, 255, 0.9)",
+  });
+
+  state.nukeFlash = 20; // Flash trắng màn hình
+}
+
+export function applyCaptureReward(type) {
+  if (type === "NUKE") {
+    triggerNuke();
+  } else if (type === "GOD_MODE") {
+    state.godMode = {
+      active: true,
+      timer: 15 * FPS, // 15 giây
+      prevSpeed: state.player.speed,
+      prevRadius: state.player.radius
+    };
+    state.player.speed *= 2;
+    state.player.radius *= 2;
+  } else if (type === "SATELLITE") {
+    spawnSatelliteDrone();
+  } else if (type === "RARE_TICKET") {
+    state.resources.rareTickets = (state.resources.rareTickets || 0) + 1;
+    state.floatingTexts.push({
+      x: state.player.x,
+      y: state.player.y - 50,
+      text: "+1 VÉ QUAY RARE!",
+      color: "#00ffff",
+      life: 120,
+      opacity: 1
+    });
+  } else if (type === "EPIC_TICKET") {
+    state.resources.epicTickets = (state.resources.epicTickets || 0) + 1;
+    state.floatingTexts.push({
+      x: state.player.x,
+      y: state.player.y - 50,
+      text: "+1 VÉ QUAY EPIC!",
+      color: "#ff00ff",
+      life: 150,
+      opacity: 1
+    });
+  }
+
+  // Hồi phục 100% máu như phần thưởng phụ
+  state.player.hp = state.player.maxHp;
+}
+
+

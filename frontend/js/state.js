@@ -39,6 +39,8 @@ export const state = {
     common: 0,
     rare: 0,
     legendary: 0,
+    rareTickets: 0,
+    epicTickets: 0,
   },
   bossFragments: [],
   characterUpgrades: {
@@ -180,7 +182,13 @@ export const state = {
   swarmZones: [],
   crates: [], // Thùng vật phẩm
   activePlayerBuffs: [], // Buff tạm thời (tốc độ bắn, v.v.)
+  capturePoints: [], // Điểm chiếm đóng
+  permanentScars: [], // Vết sẹo vĩnh viễn trên map
+  satelliteDrone: null, // Drone vệ tinh hỗ trợ (bay theo người chơi)
+  godMode: { active: false, timer: 0 }, // Buff Hóa Thần
+  items: [], // Các vật phẩm nhặt được (Crystal thưởng)
 };
+
 
 export function resetGlitchState() {
   state.glitch = {

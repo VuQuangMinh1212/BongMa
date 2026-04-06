@@ -9,8 +9,10 @@ import {
   ATTACK_MODES,
   SPECIAL_SKILLS,
   spawnCrate,
+  spawnCrystal,
+  spawnSatelliteDrone,
 } from "../entities.js";
-import { updateBullets, playerTakeDamage } from "./combat.js";
+import { updateBullets, playerTakeDamage, triggerNuke, applyCaptureReward, addExperience } from "./combat.js";
 
 export function update(ctx, canvas, changeStateFn) {
 
@@ -57,6 +59,10 @@ export function update(ctx, canvas, changeStateFn) {
   updateFloatingTexts(); // Thêm hàm cập nhật chữ bay
   updatePlayerBuffs();
   updateCrates();
+  // updateCapturePoints(ctx, canvas, changeStateFn); // REMOVED redundant call
+  updateItems(changeStateFn);
+  updateSatelliteDrone();
+  updateGodMode();
 
   // Xử lý các tác vụ trì hoãn (thay thế setTimeout)
   if (delayedTasks && delayedTasks.length > 0) {
@@ -112,6 +118,16 @@ export function update(ctx, canvas, changeStateFn) {
   if (isBrawlerE) currentSpeed *= 1.3;
   if (isMedicE) currentSpeed *= 1.2;
   if (isScoutR) currentSpeed *= 1.4;
+
+  // --- CAPTURE POINT SPEED PENALTY ---
+  const activeCP = state.capturePoints.find(cp => cp.state === "charging" && dist(player.x, player.y, cp.x, cp.y) < cp.radius);
+  if (activeCP) {
+    currentSpeed *= 0.5;
+  }
+
+  if (state.godMode && state.godMode.active) {
+      currentSpeed *= 2.0; // Hóa thần chạy nhanh
+  }
 
   // Apply Elemental Debuffs
   let s = state.playerStatus;
@@ -1861,76 +1877,67 @@ export function update(ctx, canvas, changeStateFn) {
     }
 
     // 1. Kiểm tra điều kiện quái bị trúng đòn (Hết HP hoặc bị Choáng)
-    let isHit =
-      (g.hp !== undefined && g.hp <= 0) || (!g.isSubBoss && g.isStunned > 0);
+    let isHit = (g.hp !== undefined && g.hp <= 0) || (!g.isSubBoss && g.isStunned > 0);
 
     if (isHit && !g.isRespawning) {
-      // --- SWARM ZONE KILL TRACKING ---
+      // --- XỬ LÝ PHẦN THƯỞNG KHI CHẾT ---
       if (g.parentZoneId) {
         const zone = state.swarmZones.find(sz => sz.id === g.parentZoneId);
-        if (zone) {
+        if (zone && !zone.isCompleted) {
           zone.currentKills++;
+          // Thưởng nhỏ cho mỗi lần giết (Quái bầy thưởng ít hơn)
+          const killXp = g.isHorde ? 2 : 10;
+          addExperience(killXp, changeStateFn);
+
           if (zone.currentKills >= zone.requiredKills) {
             zone.isCompleted = true;
             const xpReward = 200 * state.currentLevel;
-            const coinReward = 50 * state.currentLevel;
+            const coinLevel = 50 * state.currentLevel;
             state.player.experience += xpReward;
-            state.player.coins += coinReward;
+            state.player.coins += coinLevel;
 
-            // Hiển thị chữ kinh nghiệm bay lên
             state.floatingTexts.push({
-              x: zone.x,
-              y: zone.y,
-              text: `+${xpReward} XP`,
-              color: "#00ffcc",
-              size: 30,
-              opacity: 1,
-              life: 100
+              x: zone.x, y: zone.y,
+              text: `+${xpReward} XP`, color: "#00ffcc",
+              size: 30, opacity: 1, life: 100
             });
-            // Hiển thị tiền bay lên
             state.floatingTexts.push({
-              x: zone.x,
-              y: zone.y + 40,
-              text: `+${coinReward} Gold`,
-              color: "#ffcc00",
-              size: 30,
-              opacity: 1,
-              life: 100
+              x: zone.x, y: zone.y + 40,
+              text: `+${coinLevel} Gold`, color: "#ffcc00",
+              size: 30, opacity: 1, life: 100
             });
           }
         }
-        // Hiệu ứng nổ tại vị trí vừa chết
-        if (!state.explosions) state.explosions = [];
-        state.explosions.push({
-          x: g.x,
-          y: g.y,
-          radius: 20,
-          life: 15,
-          color: "rgba(255, 200, 0, 0.8)", // Màu vàng/cam cho bầy đàn
-        });
+      } else {
+        // Quái thường hoặc Quái bầy từ Trụ
+        const killXp = g.isHorde ? 4 : 20;
+        addExperience(killXp, changeStateFn);
+        if (g.x > 0) state.player.coins = (state.player.coins || 0) + (g.isHorde ? 1 : 3);
+      }
+
+      // --- HIỆU ỨNG NỔ ---
+      if (!state.explosions) state.explosions = [];
+      state.explosions.push({
+        x: g.x, y: g.y,
+        radius: g.isHorde ? 12 : 20,
+        life: 15,
+        color: g.isHorde ? "rgba(200, 200, 255, 0.6)" : "rgba(255, 200, 0, 0.8)",
+      });
+
+      // --- LOẠI BỎ HOẶC HỒI SINH ---
+      if (g.parentZoneId || g.isHorde) {
         state.ghosts.splice(i, 1);
         continue;
+      } else {
+        // Quái record hồi sinh sau 3s
+        g.isRespawning = true;
+        g.respawnTimer = 3 * FPS;
+        g.isStunned = 0;
+        g.x = -100;
+        g.y = -100;
+        g.historyPath = [];
+        continue;
       }
-
-      // Hiệu ứng nổ cho quái thường
-      if (g.x > 0) {
-        state.player.coins = (state.player.coins || 0) + 2;
-        if (!state.explosions) state.explosions = [];
-        state.explosions.push({
-          x: g.x,
-          y: g.y,
-          radius: 15,
-          life: 10,
-          color: "rgba(255, 68, 68, 0.6)",
-        });
-      }
-
-      g.isRespawning = true;
-      g.respawnTimer = 3 * FPS; // Thời gian chờ là 3 giây
-      g.isStunned = 0;
-      g.x = -100; // Cho quái biến mất khỏi màn hình
-      g.y = -100;
-      g.historyPath = []; // Xóa vệt di chuyển cũ
     }
 
     // 2. Logic cập nhật khi quái đang trong trạng thái "chờ hồi sinh"
@@ -1993,9 +2000,13 @@ export function update(ctx, canvas, changeStateFn) {
       let exactIndex = g.timer * g.speedRate;
       let idx = Math.floor(exactIndex);
 
-      if (idx < g.record.length) {
+      if (g.record && idx < g.record.length) {
         g.x = g.record[idx][0];
         g.y = g.record[idx][1];
+      } else if (!g.record && g.behavior === "guard") {
+        // Giữ vị trí nếu là bảo vệ (Mini-boss)
+        g.x = g.originalX || g.x;
+        g.y = g.originalY || g.y;
       } else if (!g.historyPath || g.historyPath.length === 0) {
         state.ghosts.splice(i, 1); // Xóa quái khi đi hết quỹ đạo
       }
@@ -2009,7 +2020,7 @@ export function update(ctx, canvas, changeStateFn) {
       let exactIndex = g.timer * g.speedRate;
       let idx1 = Math.floor(exactIndex);
 
-      if (idx1 < g.record.length) {
+      if (g.record && idx1 < g.record.length) {
         activeGhosts++;
         if (g.isStunned > 0) {
           g.isStunned--;
@@ -2068,20 +2079,26 @@ export function update(ctx, canvas, changeStateFn) {
           g.timer++;
         }
       } else {
-        g.historyPath.shift();
-        g.x = -100;
-        g.y = -100;
+        if (g.historyPath) {
+          g.historyPath.shift();
+        }
+        
+        // Chỉ ẩn quái Record khi đã chạy hết, không ẩn quái AI/Mini-Boss
+        if (g.record) {
+          g.x = -100;
+          g.y = -100;
+        }
         g.timer++;
       }
     } else {
       if (g.x > 0) activeGhosts++;
     }
 
-    if (g.isSubBoss) {
+    if (g.isSubBoss || g.behavior === "guard") {
       activeGhosts++;
       if (g.isStunned > 0) {
         g.isStunned--;
-      } else {
+      } else if (g.isSubBoss) {
         // AI: Từ từ áp sát người chơi
         let angle = Math.atan2(player.y - g.y, player.x - g.x);
         g.x += Math.cos(angle) * g.speedRate;
@@ -2110,9 +2127,7 @@ export function update(ctx, canvas, changeStateFn) {
           !isInvulnerable &&
           dist(g.x, g.y, player.x, player.y) < player.radius + g.radius - 2
         ) {
-          import("./combat.js").then((m) =>
-            m.playerTakeDamage(ctx, canvas, changeStateFn),
-          );
+          playerTakeDamage(ctx, canvas, changeStateFn);
         }
       }
       continue; // Bỏ qua logic đọc Record của ghost thường
@@ -2492,6 +2507,11 @@ export function update(ctx, canvas, changeStateFn) {
     });
   }
 
+  updateCapturePoints(ctx, canvas, changeStateFn);
+  updateItems(changeStateFn);
+  updateSatelliteDrone();
+  updateGodMode();
+
   state.frameCount++;
   if (!state.isBossLevel && state.frameCount % FPS === 0) {
     state.scoreTime++;
@@ -2512,6 +2532,7 @@ export function update(ctx, canvas, changeStateFn) {
 }
 
 function updateFloatingTexts() {
+  if (!state.floatingTexts) state.floatingTexts = [];
   for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
     let t = state.floatingTexts[i];
     t.y -= 1; // Bay lên
@@ -2548,10 +2569,216 @@ function updatePlayerBuffs() {
 }
 
 function updateCrates() {
-  if (state.isBossLevel) return;
+  if (state.isBossLevel || !state.crates) return;
   // Khi còn 3 thùng hoặc ít hơn, sinh thêm thùng (mỗi 2 giây kiểm tra 1 lần)
   if (state.crates.length <= 3 && state.frameCount % 120 === 0) {
     spawnCrate();
   }
 }
+
+function updateCapturePoints(ctx, canvas, changeStateFn) {
+  if (!state.capturePoints) return;
+
+  state.capturePoints.forEach((cp) => {
+    if (cp.state === "completed") return;
+
+    // 1. Kiểm tra trạng thái Bảo vệ (đợi mini-boss chết)
+    if (cp.state === "guarding") {
+      const bossAlive = state.ghosts.find((g) => g.id === cp.miniBossId && g.hp > 0);
+      if (!bossAlive) {
+        cp.state = "charging";
+        state.floatingTexts.push({
+          x: cp.x, y: cp.y - 120, text: "BOSS ĐÃ CHẾT! HÃY CHIẾM ĐÓNG!", color: "#FFD700", life: 120, opacity: 1
+        });
+      }
+      return;
+    }
+
+    // 2. Trạng thái Sạc (Charging)
+    if (cp.state === "charging") {
+      const d = dist(state.player.x, state.player.y, cp.x, cp.y);
+      const isInside = d < cp.radius;
+
+      if (isInside) {
+        // Tăng tiến trình & làm chậm người chơi (Giới hạn tối đa 100%)
+        cp.progress = Math.min(cp.totalProgress, cp.progress + 0.15);
+        state.playerStatus.slowTimer = Math.max(state.playerStatus.slowTimer || 0, 5); 
+
+        // Thu hẹp vòng tròn dựa trên tiến trình (Giới hạn bán kính tối thiểu)
+        const ratio = Math.max(0, Math.min(1, cp.progress / cp.totalProgress));
+        cp.radius = Math.max(cp.minRadius, cp.maxRadius - (cp.maxRadius - cp.minRadius) * ratio);
+
+        // Thu hút quái vật (High Aggro)
+        if (state.frameCount - (cp.lastGhostAttractTime || 0) > 120) {
+          state.ghosts.forEach(g => {
+            if (g.x > 0 && dist(g.x, g.y, cp.x, cp.y) < 1500) {
+              g.targetX = state.player.x;
+              g.targetY = state.player.y;
+            }
+          });
+          cp.lastGhostAttractTime = state.frameCount;
+        }
+      } else {
+        // Giảm tiến trình 3 lần nhanh hơn nếu ở ngoài
+        cp.progress = Math.max(0, cp.progress - 0.45);
+        // Hồi phục bán kính khi ra ngoài? Không, giữ nguyên hoặc hồi phục chậm
+        cp.radius = Math.min(cp.maxRadius, cp.radius + 1);
+      }
+
+      // 3. Shockwave của trụ (đẩy quái ra xa mỗi 3s)
+      if (state.frameCount - cp.lastPulseTime > 180) {
+        cp.lastPulseTime = state.frameCount;
+        state.ghosts.forEach((g) => {
+          const gd = dist(g.x, g.y, cp.x, cp.y);
+          if (gd < cp.radius * 2) { // Tầm xa hơn 1 chút
+            const dx = g.x - cp.x;
+            const dy = g.y - cp.y;
+            const len = Math.hypot(dx, dy) || 1;
+            g.x += (dx / len) * 150;
+            g.y += (dy / len) * 150;
+            g.isStunned = Math.max(g.isStunned, 30);
+          }
+        });
+      }
+
+      // 4. Laser xoay tròn
+      cp.laserAngle = (cp.laserAngle || 0) + 0.02;
+      const playerAngle = Math.atan2(state.player.y - cp.y, state.player.x - cp.x);
+      let angleDiff = Math.abs(playerAngle - cp.laserAngle);
+      while (angleDiff > Math.PI * 2) angleDiff -= Math.PI * 2;
+      if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff;
+
+      if (angleDiff < 0.1 && d < cp.radius) {
+        // God mode protect
+        if (!state.godMode?.active) {
+            playerTakeDamage(ctx, canvas, changeStateFn, 0.5);
+        }
+      }
+
+      // 5. Kiểm tra hoàn thành
+      if (cp.progress >= cp.totalProgress) {
+        cp.state = "completed";
+        cp.progress = cp.totalProgress;
+
+        state.screenShake.timer = 50;
+        state.screenShake.intensity = 20;
+        state.nukeFlash = 20;
+
+        if (!state.permanentScars) state.permanentScars = [];
+        state.permanentScars.push({
+          x: cp.x, y: cp.y,
+          radius: cp.maxRadius * 0.85
+        });
+
+        spawnCrystal(cp.x, cp.y, cp.rewardType);
+
+        state.floatingTexts.push({
+          x: cp.x, y: cp.y - 150, text: "CHIẾM ĐÓNG THÀNH CÔNG!", color: "#00FFDD", size: 36, life: 200, opacity: 1
+        });
+      }
+
+      // 6. Spawn Monster Hordes (NEW - Chỉ khi đang sạc và người chơi đứng trong vùng)
+      if (cp.state === "charging" && isInside && state.frameCount % 90 === 0) {
+        const hordeCount = 3 + Math.floor(state.currentLevel / 2);
+        for (let i = 0; i < hordeCount; i++) {
+          const spawnAngle = Math.random() * Math.PI * 2;
+          const spawnDist = cp.radius + 200;
+          const sx = cp.x + Math.cos(spawnAngle) * spawnDist;
+          const sy = cp.y + Math.sin(spawnAngle) * spawnDist;
+          
+          state.ghosts.push({
+            id: `horde_${Date.now()}_${i}`,
+            x: sx, y: sy,
+            radius: 12,
+            hp: 20 + state.currentLevel * 5,
+            maxHp: 20 + state.currentLevel * 5,
+            speed: 1.5 + Math.random() * 0.5,
+            isHorde: true, // Tag cho XP thấp
+            isStunned: 0,
+            historyPath: []
+          });
+        }
+      }
+    }
+  });
+}
+
+function updateItems(changeStateFn) {
+  if (!state.items) return;
+
+  for (let i = state.items.length - 1; i >= 0; i--) {
+    const item = state.items[i];
+    item.life--;
+
+    const d = dist(state.player.x, state.player.y, item.x, item.y);
+    if (d < state.player.radius + item.radius) {
+      applyCaptureReward(item.rewardType);
+      state.items.splice(i, 1);
+      continue;
+    }
+
+    if (item.life <= 0) {
+      state.items.splice(i, 1);
+    }
+  }
+}
+
+function updateSatelliteDrone() {
+  const d = state.satelliteDrone;
+  if (!d) return;
+
+  d.timer--;
+  if (d.timer <= 0) {
+    state.satelliteDrone = null;
+    return;
+  }
+
+  // Quỹ đạo xoay quanh player
+  d.angle += d.orbitSpeed;
+  d.x = state.player.x + Math.cos(d.angle) * d.orbitRadius;
+  d.y = state.player.y + Math.sin(d.angle) * d.orbitRadius;
+
+  // Bắn quái gần nhất
+  if (state.frameCount % 20 === 0) {
+    let nearest = null;
+    let minDist = 400;
+
+    state.ghosts.forEach(g => {
+      if (g.x > 0 && g.hp > 0) {
+        const distToDrone = dist(d.x, d.y, g.x, g.y);
+        if (distToDrone < minDist) {
+          minDist = distToDrone;
+          nearest = g;
+        }
+      }
+    });
+
+    if (nearest) {
+      spawnBullet(d.x, d.y, nearest.x, nearest.y, true); // true = đạn của player
+    }
+  }
+}
+
+function updateGodMode() {
+  const gm = state.godMode;
+  if (!gm || !gm.active) return;
+
+  gm.timer--;
+
+  // Húc chết quái khi chạm
+  state.ghosts.forEach(g => {
+    if (g.x > 0 && dist(state.player.x, state.player.y, g.x, g.y) < state.player.radius + g.radius) {
+      g.hp = 0;
+    }
+  });
+
+  if (gm.timer <= 0) {
+    gm.active = false;
+    state.player.speed = gm.prevSpeed;
+    state.player.radius = gm.prevRadius;
+    state.godMode = null;
+  }
+}
+
+
 
