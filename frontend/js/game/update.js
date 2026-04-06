@@ -126,7 +126,7 @@ export function update(ctx, canvas, changeStateFn) {
   }
 
   if (state.godMode && state.godMode.active) {
-      currentSpeed *= 2.0; // Hóa thần chạy nhanh
+    currentSpeed *= 2.0; // Hóa thần chạy nhanh
   }
 
   // Apply Elemental Debuffs
@@ -1989,7 +1989,7 @@ export function update(ctx, canvas, changeStateFn) {
 
       let angleToTarget = Math.atan2(ty - g.y, tx - g.x);
       let moveSpeed = (g.speed * 1.8 || 2.2); // Tốc độ nhanh hơn cho quái bầy
-      
+
       // Dacă có stun thì không di chuyển
       if (g.isStunned > 0) {
         g.isStunned--;
@@ -1997,10 +1997,10 @@ export function update(ctx, canvas, changeStateFn) {
         g.x += Math.cos(angleToTarget) * moveSpeed;
         g.y += Math.sin(angleToTarget) * moveSpeed;
       }
-      
+
       activeGhosts++;
       g.timer = (g.timer || 0) + 1;
-      
+
       if (!g.historyPath) g.historyPath = [];
       g.historyPath.push({ x: g.x, y: g.y });
       if (g.historyPath.length > 8) g.historyPath.shift();
@@ -2049,7 +2049,7 @@ export function update(ctx, canvas, changeStateFn) {
 
             // Chạy về Trụ nhanh hơn bình thường
             let angleHome = Math.atan2(g.originalY - g.y, g.originalX - g.x);
-            let returnSpeed = 4.5; 
+            let returnSpeed = 4.5;
             g.x += Math.cos(angleHome) * returnSpeed;
             g.y += Math.sin(angleHome) * returnSpeed;
           }
@@ -2384,8 +2384,15 @@ export function update(ctx, canvas, changeStateFn) {
     });
   }
 
-  if (!state.isBossLevel && state.frameCount >= state.maxFramesToSurvive) {
-    return "STAGE_CLEAR";
+  // TRONG FILE update.js (Thay thế bằng logic mới)
+  if (!state.isBossLevel) {
+    // Kiểm tra xem tất cả swarmZones đã hoàn thành chưa
+    let allZonesCleared = state.swarmZones.every(zone => zone.isCompleted);
+
+    // Nếu hoàn thành hết, kết thúc màn chơi
+    if (allZonesCleared && state.swarmZones.length > 0) {
+      return "STAGE_CLEAR";
+    }
   }
 
   // --- Hazard Processing ---
@@ -2586,10 +2593,10 @@ function updateCapturePoints(ctx, canvas, changeStateFn) {
     // 1. Kiểm tra trạng thái Bảo vệ (đợi mini-boss chết)
     if (cp.state === "guarding") {
       // Tìm boss theo ID hoặc theo loại & khoảng cách (dự phòng lỗi ID)
-      const bossAlive = state.ghosts.find((g) => 
+      const bossAlive = state.ghosts.find((g) =>
         (g.id === cp.miniBossId || (g.isMiniBoss && dist(g.x, g.y, cp.x, cp.y) < 400)) && g.hp > 0
       );
-      
+
       if (!bossAlive) {
         cp.state = "charging";
         state.floatingTexts.push({
@@ -2607,7 +2614,7 @@ function updateCapturePoints(ctx, canvas, changeStateFn) {
       if (isInside) {
         // Tăng tiến trình & làm chậm người chơi (Giới hạn tối đa 100%)
         cp.progress = Math.min(cp.totalProgress, cp.progress + 0.15);
-        state.playerStatus.slowTimer = Math.max(state.playerStatus.slowTimer || 0, 5); 
+        state.playerStatus.slowTimer = Math.max(state.playerStatus.slowTimer || 0, 5);
 
         // Thu hẹp vòng tròn dựa trên tiến trình (Giới hạn bán kính tối thiểu)
         const ratio = Math.max(0, Math.min(1, cp.progress / cp.totalProgress));
@@ -2656,7 +2663,7 @@ function updateCapturePoints(ctx, canvas, changeStateFn) {
       if (angleDiff < 0.1 && d < cp.radius) {
         // God mode protect
         if (!state.godMode?.active) {
-            playerTakeDamage(ctx, canvas, changeStateFn, 0.5);
+          playerTakeDamage(ctx, canvas, changeStateFn, 0.5);
         }
       }
 
@@ -2690,7 +2697,7 @@ function updateCapturePoints(ctx, canvas, changeStateFn) {
           const spawnDist = cp.radius + 200;
           const sx = cp.x + Math.cos(spawnAngle) * spawnDist;
           const sy = cp.y + Math.sin(spawnAngle) * spawnDist;
-          
+
           state.ghosts.push({
             id: `horde_${Date.now()}_${i}`,
             x: sx, y: sy,
@@ -2780,7 +2787,7 @@ function updateGodMode() {
           g.shieldActive = false;
           g.isStunned = 60; // Choáng 1s
         }
-        
+
         // Chỉ gây dame mỗi 0.5s để không bị trừ HP liên tục trong 1 lần chạm
         if (state.frameCount % 30 === 0) {
           g.hp -= g.maxHp * 0.15; // Mất 15% HP

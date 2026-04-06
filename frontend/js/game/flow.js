@@ -104,17 +104,14 @@ export function initGame(isNextLevel = false) {
   state.boss = null;
   UI.bossUi.style.display = "none";
 
-  let targetSurviveSeconds = Math.min(60, 15 + (state.currentLevel - 1) * 5);
-  state.maxFramesToSurvive = state.isBossLevel
-    ? 999999
-    : targetSurviveSeconds * FPS;
+  state.maxFramesToSurvive = 999999;
 
   state.ghosts = [];
   let ghostLimit = Math.min(state.currentLevel, 10);
   let runsToUse = state.pastRuns.slice(-ghostLimit);
 
   if (!state.isBossLevel) {
-    runsToUse.push(generateDummy(state.maxFramesToSurvive));
+    runsToUse.push(generateDummy(60 * FPS));
   }
 
   let playbackRate =
@@ -219,7 +216,7 @@ export function initGame(isNextLevel = false) {
 
   updateHealthUI();
   updateXPUI();
-  UI.timer.innerText = state.isBossLevel ? "BOSS" : "00:00";
+  UI.timer.innerText = state.isBossLevel ? "BOSS" : "TIÊU DIỆT TẤT CẢ";
   UI.level.innerText = `Màn: ${state.currentLevel}`;
   UI.ghosts.innerText = `Quái: ${state.ghosts.length}`;
 }
