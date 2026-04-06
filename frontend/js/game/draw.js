@@ -143,14 +143,14 @@ export function draw(ctx, canvas) {
     ctx.restore();
   });
 
+  drawFloatingTexts(ctx); // Thêm hàm vẽ chữ bay ở đây
+
   let { player, boss, bullets, ghosts, mouse, activeBuffs } = state;
   let buffs = activeBuffs || { q: 0, e: 0, r: 0 };
   const char = player?.characterId;
 
   if (!state.particles) state.particles = [];
 
-  // --- Background & Global Hazards ---
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (
     state.globalHazard &&
     state.globalHazard.active &&
@@ -2375,4 +2375,17 @@ function drawMinimap(ctx, canvas) {
     state.camera.width * scaleX,
     state.camera.height * scaleY
   );
+}
+
+function drawFloatingTexts(ctx) {
+  state.floatingTexts.forEach(t => {
+    ctx.save();
+    ctx.fillStyle = t.color || "#fff";
+    ctx.font = `bold ${t.size || 20}px Arial`;
+    ctx.textAlign = "center";
+    ctx.globalAlpha = t.opacity || 1;
+    // Vẽ chữ theo tọa độ thế giới (vì camera đã dịch chuyển)
+    ctx.fillText(t.text, t.x, t.y);
+    ctx.restore();
+  });
 }
