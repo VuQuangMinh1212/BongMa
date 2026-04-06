@@ -1166,9 +1166,19 @@ export function update(ctx, canvas, changeStateFn) {
   if (player.characterId === "reaper") {
     if (buffs.r === 1) {
       state.ghosts.forEach((g) => {
-        if (g.x > 0) g.hp = 0;
+        if (g.x > 0) {
+          if (g.isMiniBoss || g.isSubBoss) {
+            // Boss/MiniBoss chỉ mất 25% máu, không chết ngay
+            g.shield = 0;
+            g.shieldActive = false;
+            g.hp -= g.maxHp * 0.25;
+            g.isStunned = Math.max(g.isStunned, 120);
+          } else {
+            g.hp = 0;
+          }
+        }
       });
-      if (boss) boss.hp -= boss.maxHp * 0.15;
+      if (boss) boss.hp -= boss.maxHp * 0.25;
       if (!state.explosions) state.explosions = [];
       state.explosions.push({
         x: state.world.width / 2,
@@ -1316,7 +1326,15 @@ export function update(ctx, canvas, changeStateFn) {
   if (isHunterE) {
     state.ghosts.forEach((g) => {
       if (g.x > 0 && dist(player.x, player.y, g.x, g.y) < 300) {
-        g.hp = 0;
+        if (g.isMiniBoss || g.isSubBoss) {
+          // Chỉ gây dame theo thời gian (Tick) cho Boss
+          if (state.frameCount % 10 === 0) {
+            g.hp -= g.maxHp * 0.05; // 5% mỗi 10 frame
+            g.isStunned = Math.max(g.isStunned, 10);
+          }
+        } else {
+          g.hp = 0;
+        }
       }
     });
     if (boss && dist(player.x, player.y, boss.x, boss.y) < 300 + boss.radius) {
@@ -1851,10 +1869,10 @@ export function update(ctx, canvas, changeStateFn) {
   }
 
   let activeGhosts = 0;
-
   // DỌN DẸP QUÁI CHẾT SẠCH SẼ & THÊM HIỆU ỨNG NỔ TUNG
   for (let i = state.ghosts.length - 1; i >= 0; i--) {
     let g = state.ghosts[i];
+    if (!g) continue;
 
     // --- CLEANUP FINISHED SWARM GHOSTS ---
     if (g.parentZoneId) {
@@ -1866,7 +1884,6 @@ export function update(ctx, canvas, changeStateFn) {
     }
 
     // --- BARRIER LOGIC FOR GLOBAL GHOSTS ---
-    // Nếu là quái bình thường (không thuộc zone) và đi vào vùng có người chơi đang làm nhiệm vụ -> đẩy ra
     if (activeZone && !g.parentZoneId) {
       const dToZone = dist(g.x, g.y, activeZone.x, activeZone.y);
       if (dToZone < activeZone.radius) {
@@ -1876,261 +1893,245 @@ export function update(ctx, canvas, changeStateFn) {
       }
     }
 
-    // 1. Kiểm tra điều kiện quái bị trúng đòn (Hết HP hoặc bị Choáng)
-    let isHit = (g.hp !== undefined && g.hp <= 0) || (!g.isSubBoss && g.isStunned > 0);
+    // 1. Kiểm tra điều kiện quái bị trúng đòn (TRỪ Elite không bao giờ chết vì choáng)
+    let isHit = (g.hp !== undefined && g.hp <= 0) || (!g.isSubBoss && !g.isMiniBoss && g.isStunned > 0);
 
     if (isHit && !g.isRespawning) {
-      // --- XỬ LÝ PHẦN THƯỞNG KHI CHẾT ---
       if (g.parentZoneId) {
         const zone = state.swarmZones.find(sz => sz.id === g.parentZoneId);
         if (zone && !zone.isCompleted) {
           zone.currentKills++;
-          // Thưởng nhỏ cho mỗi lần giết (Quái bầy thưởng ít hơn)
           const killXp = g.isHorde ? 2 : 10;
           addExperience(killXp, changeStateFn);
-
           if (zone.currentKills >= zone.requiredKills) {
             zone.isCompleted = true;
             const xpReward = 200 * state.currentLevel;
             const coinLevel = 50 * state.currentLevel;
             state.player.experience += xpReward;
             state.player.coins += coinLevel;
-
-            state.floatingTexts.push({
-              x: zone.x, y: zone.y,
-              text: `+${xpReward} XP`, color: "#00ffcc",
-              size: 30, opacity: 1, life: 100
-            });
-            state.floatingTexts.push({
-              x: zone.x, y: zone.y + 40,
-              text: `+${coinLevel} Gold`, color: "#ffcc00",
-              size: 30, opacity: 1, life: 100
-            });
+            state.floatingTexts.push({ x: zone.x, y: zone.y, text: `+${xpReward} XP`, color: "#00ffcc", size: 30, opacity: 1, life: 100 });
+            state.floatingTexts.push({ x: zone.x, y: zone.y + 40, text: `+${coinLevel} Gold`, color: "#ffcc00", size: 30, opacity: 1, life: 100 });
           }
         }
       } else {
-        // Quái thường hoặc Quái bầy từ Trụ
         const killXp = g.isHorde ? 4 : 20;
         addExperience(killXp, changeStateFn);
         if (g.x > 0) state.player.coins = (state.player.coins || 0) + (g.isHorde ? 1 : 3);
       }
 
-      // --- HIỆU ỨNG NỔ ---
       if (!state.explosions) state.explosions = [];
-      state.explosions.push({
-        x: g.x, y: g.y,
-        radius: g.isHorde ? 12 : 20,
-        life: 15,
-        color: g.isHorde ? "rgba(200, 200, 255, 0.6)" : "rgba(255, 200, 0, 0.8)",
-      });
+      state.explosions.push({ x: g.x, y: g.y, radius: g.isHorde ? 12 : 20, life: 15, color: g.isHorde ? "rgba(200, 200, 255, 0.6)" : "rgba(255, 200, 0, 0.8)" });
 
-      // --- LOẠI BỎ HOẶC HỒI SINH ---
       if (g.parentZoneId || g.isHorde) {
         state.ghosts.splice(i, 1);
         continue;
       } else {
-        // Quái record hồi sinh sau 3s
         g.isRespawning = true;
         g.respawnTimer = 3 * FPS;
         g.isStunned = 0;
-        g.x = -100;
-        g.y = -100;
+        g.x = -100; g.y = -100;
         g.historyPath = [];
         continue;
       }
     }
 
-    // 2. Logic cập nhật khi quái đang trong trạng thái "chờ hồi sinh"
+    // 2. Logic cập nhật khi quái đang chờ hồi sinh
     if (g.isRespawning) {
       g.respawnTimer--;
-
-      // QUAN TRỌNG: Vẫn tăng timer để quái "di chuyển ngầm" trên quỹ đạo
       g.timer++;
-
-      // Khi còn 0.5 giây cuối, hiển thị nhấp nháy tại vị trí 3s sau để báo hiệu
       if (g.respawnTimer === Math.floor(0.5 * FPS)) {
         let spawnAngle = Math.random() * Math.PI * 2;
         g.x = player.x + Math.cos(spawnAngle) * 400;
         g.y = player.y + Math.sin(spawnAngle) * 400;
+        g.historyPath = [{ x: g.x, y: g.y }];
       }
-
-      // Nhấp nháy báo hiệu chuẩn bị xuất hiện
-      if (g.respawnTimer < 0.5 * FPS) {
-        g.flicker = true;
-      }
-
+      if (g.respawnTimer < 0.5 * FPS) g.flicker = true;
       if (g.respawnTimer <= 0) {
         g.isRespawning = false;
-        g.hp = undefined; // Reset máu cho lần sống tiếp theo
+        g.hp = undefined;
         g.flicker = false;
       }
-      continue; // Bỏ qua phần cập nhật vị trí bình thường phía dưới
+      continue;
     }
 
-    // 3. Cập nhật vị trí bình thường cho quái đang sống
+    // 3. AI Bầy Đàn (Swarm Zones)
     if (g.parentZoneId) {
-      // AI BẦY ĐÀN: Đuổi theo người chơi RẤT chậm rãi
       const angle = Math.atan2(player.y - g.y, player.x - g.x);
-      const speed = 0.8 + (state.currentLevel * 0.05); // Giảm tốc độ đáng kể
+      const speed = 0.8 + (state.currentLevel * 0.05);
       g.x += Math.cos(angle) * speed;
       g.y += Math.sin(angle) * speed;
 
-      // RÀO CHẮN (LEASH): Giữ quái ở trong vùng
       const zone = state.swarmZones.find(sz => sz.id === g.parentZoneId);
       if (zone) {
         const dToCenter = dist(g.x, g.y, zone.x, zone.y);
         if (dToCenter > zone.radius) {
           const angleBack = Math.atan2(zone.y - g.y, zone.x - g.x);
-          // Đẩy mạnh quái trở lại vùng trung tâm
           g.x += Math.cos(angleBack) * (speed + 2);
           g.y += Math.sin(angleBack) * (speed + 2);
         }
       }
-
-      // Bắn đạn (Pellets) liên tục
       if (state.frameCount - (g.lastShot || 0) > 90 + Math.random() * 60) {
-        // SỬA: Phải truyền targetX và targetY cụ thể thay vì chỉ chuyền góc
-        const tx = g.x + Math.cos(angle) * 100;
-        const ty = g.y + Math.sin(angle) * 100;
-        spawnBullet(g.x, g.y, tx, ty, false, 4); // Bắn về phía người chơi, style vàng (4)
+        spawnBullet(g.x, g.y, g.x + Math.cos(angle) * 100, g.y + Math.sin(angle) * 100, false, 4);
         g.lastShot = state.frameCount;
       }
-    } else {
-      g.timer++;
-      let exactIndex = g.timer * g.speedRate;
-      let idx = Math.floor(exactIndex);
-
-      if (g.record && idx < g.record.length) {
-        g.x = g.record[idx][0];
-        g.y = g.record[idx][1];
-      } else if (!g.record && g.behavior === "guard") {
-        // Giữ vị trí nếu là bảo vệ (Mini-boss)
-        g.x = g.originalX || g.x;
-        g.y = g.originalY || g.y;
-      } else if (!g.historyPath || g.historyPath.length === 0) {
-        state.ghosts.splice(i, 1); // Xóa quái khi đi hết quỹ đạo
-      }
+      activeGhosts++;
+      continue;
     }
-  }
 
-  for (let g of state.ghosts) {
-    if (g.isRespawning || g.parentZoneId) continue; // SỬA: Quái bầy đã có AI riêng, bỏ qua loop này để tránh bị nhân đôi tốc độ
+    // 4. Capture Point Swarm AI (Horde)
+    const activePillar = state.capturePoints?.find(p => p.state === "charging");
+    const isSwarming = (activePillar && !g.isSubBoss && !g.isMiniBoss && dist(g.x, g.y, activePillar.x, activePillar.y) < 2000) || g.isHorde;
 
+    if (isSwarming && !isTimeFrozen) {
+      // 🎯 DI CHUYỂN VỀ PHÍA MỤC TIÊU (Player hoặc targetX/Y)
+      let tx = g.targetX !== undefined ? g.targetX : player.x;
+      let ty = g.targetY !== undefined ? g.targetY : player.y;
+
+      let angleToTarget = Math.atan2(ty - g.y, tx - g.x);
+      let moveSpeed = (g.speed * 1.8 || 2.2); // Tốc độ nhanh hơn cho quái bầy
+      
+      // Dacă có stun thì không di chuyển
+      if (g.isStunned > 0) {
+        g.isStunned--;
+      } else {
+        g.x += Math.cos(angleToTarget) * moveSpeed;
+        g.y += Math.sin(angleToTarget) * moveSpeed;
+      }
+      
+      activeGhosts++;
+      g.timer = (g.timer || 0) + 1;
+      
+      if (!g.historyPath) g.historyPath = [];
+      g.historyPath.push({ x: g.x, y: g.y });
+      if (g.historyPath.length > 8) g.historyPath.shift();
+
+      // Gây sát thương nếu quái bầy chạm vào người chơi
+      if (!isInvulnerable && dist(g.x, g.y, player.x, player.y) < player.radius + g.radius - 2) {
+        playerTakeDamage(ctx, canvas, changeStateFn);
+      }
+      continue;
+    }
+
+    // 5. Record-based movement hoặc MiniBoss AI
     if (!isTimeFrozen) {
-      let exactIndex = g.timer * g.speedRate;
-      let idx1 = Math.floor(exactIndex);
-
-      if (g.record && idx1 < g.record.length) {
+      if (g.isMiniBoss || g.behavior === "guard" || g.isSubBoss) {
         activeGhosts++;
         if (g.isStunned > 0) {
           g.isStunned--;
-        } else {
-          let prevX = g.x,
-            prevY = g.y;
-          let action1 = g.record[idx1];
+        } else if (g.isMiniBoss && g.originalX !== undefined) {
+          const dToPlayer = dist(g.x, g.y, player.x, player.y);
+          const dFromHome = dist(g.x, g.y, g.originalX, g.originalY);
+          const dPlayerFromHome = dist(player.x, player.y, g.originalX, g.originalY);
+          const aggroRange = 600;
+          const leashRange = 900;
 
-          if (idx1 + 1 < g.record.length) {
-            let action2 = g.record[idx1 + 1];
+          // MiniBoss chỉ đuổi theo nếu Player nằm trong vùng bảo vệ của Trụ
+          if (dToPlayer < aggroRange && dPlayerFromHome < leashRange) {
+            // TRẠNG THÁI CHIẾN ĐẤU (Aggressive)
+            let angle = Math.atan2(player.y - g.y, player.x - g.x);
+            let moveSpeed = (g.speedRate || 1.0) * (g.speed || 1.1);
+            g.x += Math.cos(angle) * moveSpeed;
+            g.y += Math.sin(angle) * moveSpeed;
 
-            // 1. Tính gia tốc lạng lách từ Record thay vì lấy tọa độ tuyệt đối
-            let recVx = action2[0] - action1[0];
-            let recVy = action2[1] - action1[1];
+            // Chỉ bắn đạn khi đang truy đuổi
+            if (state.frameCount % 60 === 0) {
+              spawnBullet(g.x, g.y, player.x, player.y, false, 2, "ghost", 1.5);
+            }
+          } else if (dFromHome > 10) {
+            // TRẠNG THÁI RESET (Leashed)
+            // Hồi phục hoàn toàn nếu người chơi bỏ đi
+            if (g.hp < g.maxHp || (g.shield || 0) < (g.maxShield || 0)) {
+              g.hp = g.maxHp;
+              g.shield = g.maxShield;
+              g.shieldActive = true;
+              g.isStunned = 0; // Hết choáng khi reset
+            }
 
-            // 2. Thêm AI tạo lực hút đuổi theo người chơi
-            let angleToPlayer = Math.atan2(player.y - g.y, player.x - g.x);
-
-            let isDummy = g.isDummy || g.record.length === 5000;
-
-            let chaseSpeed = isDummy ? 4.5 : 1.5;
-            let chaseVx = Math.cos(angleToPlayer) * chaseSpeed;
-            let chaseVy = Math.sin(angleToPlayer) * chaseSpeed;
-
-            // 3. Kết hợp 2 yếu tố: Vừa di chuyển theo Record, vừa bám đuôi bạn
-            g.x += (recVx + chaseVx) * g.speedRate;
-            g.y += (recVy + chaseVy) * g.speedRate;
-          } else {
-            // Khi đã chạy hết bộ nhớ Record cũ, quái hoàn toàn chuyển sang AI đuổi theo
-            let angleToPlayer = Math.atan2(player.y - g.y, player.x - g.x);
-
-            let isDummy = g.isDummy || g.record.length === 5000;
-            let chaseSpeed = isDummy ? 4.5 : 2.5;
-
-            g.x += Math.cos(angleToPlayer) * chaseSpeed * g.speedRate;
-            g.y += Math.sin(angleToPlayer) * chaseSpeed * g.speedRate;
+            // Chạy về Trụ nhanh hơn bình thường
+            let angleHome = Math.atan2(g.originalY - g.y, g.originalX - g.x);
+            let returnSpeed = 4.5; 
+            g.x += Math.cos(angleHome) * returnSpeed;
+            g.y += Math.sin(angleHome) * returnSpeed;
           }
+        } else if (g.isSubBoss || g.isMiniBoss) {
+          // Các SubBoss/MiniBoss vãng lai (không gác trụ) vẫn đuổi bình thường
+          let angle = Math.atan2(player.y - g.y, player.x - g.x);
+          let moveSpeed = (g.speedRate || 1.0) * (g.speed || 1.1);
+          g.x += Math.cos(angle) * moveSpeed;
+          g.y += Math.sin(angle) * moveSpeed;
 
-          g.historyPath.push({ x: g.x, y: g.y });
-          if (g.historyPath.length > 8) g.historyPath.shift();
-
-          // 4. Ngắm thẳng đạn vào người chơi thay vì bắn vào khoảng không
-          if (g.lastIdx !== idx1 && action1.length === 4) {
-            spawnBullet(g.x, g.y, player.x, player.y, false, 0, "ghost");
+          if (state.frameCount % 60 === 0) {
+            spawnBullet(g.x, g.y, player.x, player.y, false, g.color === "#ff4400" ? 1 : 2, "ghost", 1.5);
           }
-          g.lastIdx = idx1;
-
-          let ghostIsDashing = dist(g.x, g.y, prevX, prevY) > 8 * g.speedRate;
-          if (
-            !isInvulnerable &&
-            !ghostIsDashing &&
-            dist(g.x, g.y, player.x, player.y) < player.radius + g.radius - 2
-          ) {
-            playerTakeDamage(ctx, canvas, changeStateFn);
-          }
-          g.timer++;
+        } else if (g.behavior === "guard") {
+          g.x = g.originalX || g.x;
+          g.y = g.originalY || g.y;
         }
-      } else {
-        if (g.historyPath) {
-          g.historyPath.shift();
-        }
-        
-        // Chỉ ẩn quái Record khi đã chạy hết, không ẩn quái AI/Mini-Boss
-        if (g.record) {
-          g.x = -100;
-          g.y = -100;
-        }
-        g.timer++;
-      }
-    } else {
-      if (g.x > 0) activeGhosts++;
-    }
 
-    if (g.isSubBoss || g.behavior === "guard") {
-      activeGhosts++;
-      if (g.isStunned > 0) {
-        g.isStunned--;
-      } else if (g.isSubBoss) {
-        // AI: Từ từ áp sát người chơi
-        let angle = Math.atan2(player.y - g.y, player.x - g.x);
-        g.x += Math.cos(angle) * g.speedRate;
-        g.y += Math.sin(angle) * g.speedRate;
-
-        // Lưu vết để vẽ (chống lỗi crash)
+        if (!g.historyPath) g.historyPath = [];
         g.historyPath.push({ x: g.x, y: g.y });
         if (g.historyPath.length > 8) g.historyPath.shift();
 
-        // AI: Xả đạn mỗi giây
-        if (state.frameCount % 60 === 0) {
-          spawnBullet(
-            g.x,
-            g.y,
-            player.x,
-            player.y,
-            false,
-            g.color === "#ff4400" ? 1 : 2,
-            "ghost",
-            1.5,
-          );
-        }
-
-        // Gây sát thương nếu chạm vào người chơi
-        if (
-          !isInvulnerable &&
-          dist(g.x, g.y, player.x, player.y) < player.radius + g.radius - 2
-        ) {
+        if (!isInvulnerable && dist(g.x, g.y, player.x, player.y) < player.radius + g.radius - 2) {
           playerTakeDamage(ctx, canvas, changeStateFn);
         }
+      } else if (g.record) {
+        let exactIndex = (g.timer || 0) * (g.speedRate || 1.0);
+        if (isNaN(exactIndex)) exactIndex = 0;
+        let idx = Math.floor(exactIndex);
+
+        if (idx < g.record.length) {
+          activeGhosts++;
+          if (g.isStunned > 0) {
+            g.isStunned--;
+          } else {
+            let prevX = g.x, prevY = g.y;
+            let action1 = g.record[idx];
+            if (idx + 1 < g.record.length) {
+              let action2 = g.record[idx + 1];
+              let recVx = action2[0] - action1[0];
+              let recVy = action2[1] - action1[1];
+              let angleToPlayer = Math.atan2(player.y - g.y, player.x - g.x);
+              let isDummy = g.isDummy || g.record.length === 5000;
+              let chaseSpeed = isDummy ? 4.5 : 1.5;
+              g.x += (recVx + Math.cos(angleToPlayer) * chaseSpeed) * (g.speedRate || 1.0);
+              g.y += (recVy + Math.sin(angleToPlayer) * chaseSpeed) * (g.speedRate || 1.0);
+            } else {
+              let angleToPlayer = Math.atan2(player.y - g.y, player.x - g.x);
+              let chaseSpeed = (g.isDummy || g.record.length === 5000) ? 4.5 : 2.5;
+              g.x += Math.cos(angleToPlayer) * chaseSpeed * (g.speedRate || 1.0);
+              g.y += Math.sin(angleToPlayer) * chaseSpeed * (g.speedRate || 1.0);
+            }
+
+            if (!g.historyPath) g.historyPath = [];
+            g.historyPath.push({ x: g.x, y: g.y });
+            if (g.historyPath.length > 8) g.historyPath.shift();
+
+            if (g.lastIdx !== idx && action1.length === 4) {
+              spawnBullet(g.x, g.y, player.x, player.y, false, 0, "ghost");
+            }
+            g.lastIdx = idx;
+
+            if (!isInvulnerable && dist(g.x, g.y, player.x, player.y) < player.radius + g.radius - 2) {
+              playerTakeDamage(ctx, canvas, changeStateFn);
+            }
+            g.timer = (g.timer || 0) + 1;
+          }
+        } else {
+          if (g.historyPath && g.historyPath.length > 0) {
+            g.historyPath.shift();
+          } else {
+            state.ghosts.splice(i, 1);
+          }
+        }
+      } else {
+        // CHỐNG XÓA NHẦM: Không xóa quái bầy hoặc MiniBoss chỉ vì hết historyPath
+        if (!g.isHorde && !g.isMiniBoss && (!g.historyPath || g.historyPath.length === 0)) {
+          state.ghosts.splice(i, 1);
+        }
       }
-      continue; // Bỏ qua logic đọc Record của ghost thường
+    } else {
+      if (g.x > 0) activeGhosts++;
     }
   }
 
@@ -2584,7 +2585,11 @@ function updateCapturePoints(ctx, canvas, changeStateFn) {
 
     // 1. Kiểm tra trạng thái Bảo vệ (đợi mini-boss chết)
     if (cp.state === "guarding") {
-      const bossAlive = state.ghosts.find((g) => g.id === cp.miniBossId && g.hp > 0);
+      // Tìm boss theo ID hoặc theo loại & khoảng cách (dự phòng lỗi ID)
+      const bossAlive = state.ghosts.find((g) => 
+        (g.id === cp.miniBossId || (g.isMiniBoss && dist(g.x, g.y, cp.x, cp.y) < 400)) && g.hp > 0
+      );
+      
       if (!bossAlive) {
         cp.state = "charging";
         state.floatingTexts.push({
@@ -2625,12 +2630,12 @@ function updateCapturePoints(ctx, canvas, changeStateFn) {
         cp.radius = Math.min(cp.maxRadius, cp.radius + 1);
       }
 
-      // 3. Shockwave của trụ (đẩy quái ra xa mỗi 3s)
+      // 3. Shockwave của trụ (để quái bầy không bám quá chặt, trừ MiniBoss/SubBoss)
       if (state.frameCount - cp.lastPulseTime > 180) {
         cp.lastPulseTime = state.frameCount;
         state.ghosts.forEach((g) => {
           const gd = dist(g.x, g.y, cp.x, cp.y);
-          if (gd < cp.radius * 2) { // Tầm xa hơn 1 chút
+          if (gd < cp.radius * 2 && !g.isMiniBoss && !g.isSubBoss) { // SỬA: Không đẩy và không stun MiniBoss
             const dx = g.x - cp.x;
             const dy = g.y - cp.y;
             const len = Math.hypot(dx, dy) || 1;
@@ -2677,9 +2682,9 @@ function updateCapturePoints(ctx, canvas, changeStateFn) {
         });
       }
 
-      // 6. Spawn Monster Hordes (NEW - Chỉ khi đang sạc và người chơi đứng trong vùng)
-      if (cp.state === "charging" && isInside && state.frameCount % 90 === 0) {
-        const hordeCount = 3 + Math.floor(state.currentLevel / 2);
+      // 6. Spawn Monster Hordes (CÂN BẰNG: Giảm tần suất và số lượng)
+      if (cp.state === "charging" && isInside && state.frameCount % 120 === 0) {
+        const hordeCount = 2 + Math.floor(state.currentLevel / 3);
         for (let i = 0; i < hordeCount; i++) {
           const spawnAngle = Math.random() * Math.PI * 2;
           const spawnDist = cp.radius + 200;
@@ -2765,10 +2770,24 @@ function updateGodMode() {
 
   gm.timer--;
 
-  // Húc chết quái khi chạm
+  // Húc chết quái khi chạm (MiniBoss/SubBoss được bảo vệ)
   state.ghosts.forEach(g => {
     if (g.x > 0 && dist(state.player.x, state.player.y, g.x, g.y) < state.player.radius + g.radius) {
-      g.hp = 0;
+      if (g.isMiniBoss || g.isSubBoss) {
+        // God mode chỉ phá giáp và gây dame lớn cho Elite, không cho phép 1-hit
+        if (g.shieldActive) {
+          g.shield = 0;
+          g.shieldActive = false;
+          g.isStunned = 60; // Choáng 1s
+        }
+        
+        // Chỉ gây dame mỗi 0.5s để không bị trừ HP liên tục trong 1 lần chạm
+        if (state.frameCount % 30 === 0) {
+          g.hp -= g.maxHp * 0.15; // Mất 15% HP
+        }
+      } else {
+        g.hp = 0;
+      }
     }
   });
 

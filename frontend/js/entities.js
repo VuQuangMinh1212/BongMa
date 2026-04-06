@@ -2201,15 +2201,21 @@ export function spawnCapturePoint() {
 
 export function spawnMiniBoss(x, y, id) {
   // Mini boss là một con ma cực kỳ trâu bò và to lớn
+  const hp = 3000 + state.currentLevel * 1000;
   state.ghosts.push({
     id: id,
     isMiniBoss: true,
+    isSubBoss: true, // Thêm flag này để thừa hưởng AI và chống 1-hit
     x,
     y,
-    radius: 50, // To hơn quái thường
-    hp: 100 + state.currentLevel * 30, // Trâu hơn
-    maxHp: 100 + state.currentLevel * 30,
-    speed: 1.2, // Chậm nhưng lỳ lợm
+    radius: 60, // To hơn nữa
+    hp: hp,
+    maxHp: hp,
+    shield: Math.floor(hp * 0.2), // Giáp bằng 20% HP
+    maxShield: Math.floor(hp * 0.2),
+    shieldActive: true,
+    speed: 1.1, // Chậm hơn một chút để lỳ lợm hơn
+    speedRate: 1.0, // Thêm speedRate mặc định để không bị lỗi NaN khi update
     color: "#ff0055", // Màu đặc trưng
     lastHazardDamageTime: 0,
     burnTimer: 0,

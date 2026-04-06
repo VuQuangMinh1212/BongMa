@@ -1369,6 +1369,49 @@ export function draw(ctx, canvas) {
       ctx.lineWidth = 2;
       ctx.stroke();
     }
+
+    // --- DRAW MINI-BOSS HP BAR (UPGRADED) ---
+    if (g.isMiniBoss && g.hp !== undefined) {
+      const barWidth = 100;
+      const barHeight = 12;
+      const bx = g.x - barWidth / 2;
+      const by = g.y - g.radius - 25;
+
+      // 1. Black Background
+      ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+      ctx.fillRect(bx, by, barWidth, barHeight);
+
+      // 2. HP Fill (Red/Orange)
+      const hpRatio = Math.max(0, g.hp / g.maxHp);
+      ctx.fillStyle = g.hp > g.maxHp * 0.3 ? "#ff1144" : "#ff9900";
+      ctx.fillRect(bx, by, barWidth * hpRatio, barHeight);
+
+      // 3. Shield Fill (Cyan Overlay)
+      if (g.shieldActive && (g.shield || 0) > 0) {
+        const shieldRatio = Math.max(0, g.shield / g.maxShield);
+        ctx.fillStyle = "rgba(0, 255, 255, 0.7)"; 
+        ctx.fillRect(bx, by, barWidth * shieldRatio, barHeight);
+        
+        // Pulsing border for shield
+        const pulse = (Math.sin(state.frameCount * 0.2) + 1) * 0.5;
+        ctx.strokeStyle = `rgba(255, 255, 255, ${0.4 + pulse * 0.4})`;
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(bx, by, barWidth * shieldRatio, barHeight);
+      }
+
+      // 4. Outer Border
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(bx, by, barWidth, barHeight);
+
+      // 5. Boss Label (Optional check)
+      if (g.hp > 0) {
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 10px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("MINI BOSS", g.x, by - 5);
+      }
+    }
   }
 
   let isScoutQ = char === "scout" && buffs.q > 0;
