@@ -176,6 +176,7 @@ export const state = {
     earth: "#996633",
     wind: "#00ffcc",
   },
+  swarmZones: [],
 };
 
 export function resetGlitchState() {

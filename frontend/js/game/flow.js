@@ -158,6 +158,31 @@ export function initGame(isNextLevel = false) {
     UI.bossHp.style.width = "100%";
     state.ghosts = [];
   }
+
+  // --- INITIALIZE SWARM ZONES ---
+  const shouldRegenZones = state.swarmZones.length === 0 || state.swarmZones.every(sz => sz.isCompleted);
+  
+  if (shouldRegenZones) {
+    state.swarmZones = [];
+    if (!state.isBossLevel) {
+      // Mỗi màn rải 1-2 khu vực bầy đàn ngẫu nhiên nếu đã xong hết chỗ cũ
+      const numZones = 1 + Math.floor(Math.random() * 2);
+      for (let i = 0; i < numZones; i++) {
+          state.swarmZones.push({
+              id: `swarm_${state.currentLevel}_${i}_${Date.now()}`,
+              x: 500 + Math.random() * (state.world.width - 1000),
+              y: 500 + Math.random() * (state.world.height - 1000),
+              radius: 500, // Tăng kích thước vùng lên 500
+              requiredKills: 15 + state.currentLevel * 5,
+              currentKills: 0,
+              isCompleted: false,
+              active: false,
+              spawnedLocalGhosts: false
+          });
+      }
+    }
+  }
+
   // SỬA: Không gọi bossSummonGhosts trong initGame vì nó được quản lý ở update.js
   /* if (state.isBossLevel && state.boss) {
     if (!state.boss.ghostsActive) {

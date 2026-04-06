@@ -399,15 +399,22 @@ export function updateBullets(
         if (b.hitList.includes(g)) continue;
 
         if (
-          g.isStunned <= 0 &&
+          (g.isStunned <= 0 || g.parentZoneId) && // SỬA: Quái bầy không được hưởng "miễn nhiễm" khi bị stun
           g.x > 0 &&
           dist(b.x, b.y, g.x, g.y) < g.radius + b.radius
         ) {
           b.hitList.push(g);
 
-          if (state.isBossLevel) {
+          if (state.isBossLevel || g.parentZoneId) {
             ghosts.splice(j, 1);
-            state.player.coins = (state.player.coins || 0) + 10;
+            if (g.parentZoneId) {
+              const zone = state.swarmZones.find((sz) => sz.id === g.parentZoneId);
+              if (zone) zone.currentKills++;
+              addExperience(6, changeStateFn);
+              state.player.coins = (state.player.coins || 0) + 5;
+            } else {
+              state.player.coins = (state.player.coins || 0) + 10;
+            }
           } else {
             let finalDmg = b.damage || 1;
 
