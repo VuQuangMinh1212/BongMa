@@ -311,6 +311,15 @@ export async function onCardSelected(gameLoopFn) {
   saveGame(state, GHOST_DATA_KEY);
   persistState();
   if (state.upgradeFromXP) {
+
+    if (state.player.experience >= state.player.experienceToLevel) {
+      state.player.experience -= state.player.experienceToLevel;
+      state.player.experienceToLevel = Math.max(50, Math.floor(state.player.experienceToLevel * 1.15));
+      updateXPUI();
+      changeState("UPGRADE", gameLoopFn);
+      return;
+    }
+
     state.upgradeFromXP = false;
     changeState("PLAYING", gameLoopFn);
     return;

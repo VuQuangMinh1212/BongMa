@@ -444,7 +444,7 @@ export function updateBullets(
                   zone.isCompleted = true;
                   const xpReward = 500 * state.currentLevel;
                   const coinReward = 200 * state.currentLevel;
-                  state.player.experience += xpReward;
+                  addExperience(xpReward, changeStateFn);
                   state.player.coins += coinReward;
 
                   // Hiển thị chữ kinh nghiệm bay lên
