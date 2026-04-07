@@ -40,8 +40,8 @@ export const painter = {
     update: (state, ctx, canvas, buffs) => {
         let { boss, ghosts, mouse, frameCount } = state;
 
-        // Painter sử dụng cọ vẽ nên không bắn đạn thường
-        state.playerCanShootModifier = false;
+        // Chỉ khóa bắn đạn thường khi đang trong chế độ vẽ (Q)
+        if (state.painterDrawing) state.playerCanShootModifier = false;
 
         // ===== 1. PAINTER DRAW (Q) =====
         if (state.painterDrawing) {

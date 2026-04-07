@@ -8,7 +8,10 @@
       "Bash(grep -n \"state\\\\.bullets\\\\.push\\\\|bullets\\\\.push\" *.js)",
       "Bash(grep -n \"function spawnBullet\\\\|spawnBullet.*=\\\\|export.*spawnBullet\" *.js)",
       "Bash(grep -n \"spawnBossAttack\" /e/Users/Admin/Desktop/BongMa/frontend/js/*.js)",
-      "Bash(grep -rn \"state.hazards\" frontend/js/game/*.js)"
+      "Bash(grep -rn \"state.hazards\" frontend/js/game/*.js)",
+      "Bash(node -e ':*)",
+      "Bash(node _cleanup_draw.js)",
+      "Bash(python3 -)"
     ]
   }
 }

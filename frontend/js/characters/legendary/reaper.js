@@ -50,6 +50,8 @@ export const reaper = {
         if (key === "r") {
             state.activeBuffs.r = 2 * FPS; // Thời gian hiển thị aura đen
             state.screenShake = { timer: 30, intensity: 12 };
+            if (!state.skillRangeIndicators) state.skillRangeIndicators = [];
+            state.skillRangeIndicators.push({ x: player.x, y: player.y, radius: 1800, life: 45, maxLife: 45, color: "rgba(200,0,0,1)" });
 
             ghosts.forEach(g => {
                 if (g.x > 0) {

@@ -16,6 +16,11 @@ export const elementalist = {
         }
 
         if (key === "e") {
+            if (!state.skillRangeIndicators) state.skillRangeIndicators = [];
+            const eColors = { fire: "#ff6600", ice: "#00ccff", lightning: "#ffff00", earth: "#8B4513", wind: "#aaffee" };
+            const eRadii = { fire: 80, ice: 100, lightning: 200, earth: 60, wind: 140 };
+            state.skillRangeIndicators.push({ x: mouse.x, y: mouse.y, radius: eRadii[element] || 100, life: 40, maxLife: 40, color: eColors[element] });
+
             if (element === "fire") state.hazards.push({ x: mouse.x, y: mouse.y, radius: 80, type: "fire", life: 120, owner: "player" });
             if (element === "ice") state.hazards.push({ x: mouse.x, y: mouse.y, radius: 100, type: "frost", life: 120, owner: "player" });
             if (element === "lightning") {
@@ -31,6 +36,11 @@ export const elementalist = {
         }
 
         if (key === "r") {
+            if (!state.skillRangeIndicators) state.skillRangeIndicators = [];
+            const rColors = { fire: "#ff4400", ice: "#00aaff", lightning: "#ffff00", earth: "#8B4513", wind: "#aaffee" };
+            const rRadii = { fire: 400, ice: 500, lightning: 400, earth: 300, wind: 450 };
+            state.skillRangeIndicators.push({ x: player.x, y: player.y, radius: rRadii[state.element] || 400, life: 50, maxLife: 50, color: rColors[state.element] });
+
             state.activeBuffs.r = 6 * FPS;
             state.elementR = {
                 type: state.element === "ice" ? "ice_rain" : state.element,

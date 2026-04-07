@@ -438,8 +438,6 @@ export function updateBullets(
               const zone = state.swarmZones.find((sz) => sz.id === g.parentZoneId);
               if (zone && !zone.isCompleted) {
                 zone.currentKills++;
-                addExperience(6, changeStateFn);
-                state.player.coins = (state.player.coins || 0) + 5;
 
                 // --- MISSION COMPLETION CHECK ---
                 if (zone.currentKills >= zone.requiredKills) {
@@ -511,8 +509,6 @@ export function updateBullets(
               g.y += (dy / len) * 10;
             }
 
-            // earth = default (không cần code)
-
             // ⚠️ giữ nguyên logic cũ của bạn
             if (
               state.player.characterId === "hunter" &&
@@ -546,8 +542,6 @@ export function updateBullets(
             if (finalDmg > 0) {
               g.hp = (g.hp || 1) - finalDmg;
             }
-            addExperience(6, changeStateFn);
-            state.player.coins = (state.player.coins || 0) + 5;
           }
           hitGhost = true;
 

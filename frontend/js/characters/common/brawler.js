@@ -12,7 +12,9 @@ export const brawler = {
 
         // Q: Cú Đấm Lốc Xoáy - Sát thương quanh bản thân
         if (key === "q") {
-            state.activeBuffs.q = 15; // Kéo dài 15 frame (0.25s)
+            state.activeBuffs.q = 15;
+            if (!state.skillRangeIndicators) state.skillRangeIndicators = [];
+            state.skillRangeIndicators.push({ x: player.x, y: player.y, radius: 120, life: 30, maxLife: 30, color: "#ff6432" });
 
             state.ghosts.forEach(g => {
                 if (g.x > 0 && dist(player.x, player.y, g.x, g.y) < 120) {
@@ -32,8 +34,10 @@ export const brawler = {
 
         // R: Nện Mặt Đất - Gây sóng xung kích diện rộng
         if (key === "r") {
-            state.activeBuffs.r = 30; // Kéo dài 30 frame (0.5s)
+            state.activeBuffs.r = 30;
             state.screenShake = { timer: 10, intensity: 6 };
+            if (!state.skillRangeIndicators) state.skillRangeIndicators = [];
+            state.skillRangeIndicators.push({ x: player.x, y: player.y, radius: 300, life: 40, maxLife: 40, color: "#ffc800" });
 
             state.ghosts.forEach(g => {
                 if (g.x > 0 && dist(player.x, player.y, g.x, g.y) < 300) {

@@ -125,7 +125,7 @@ export function spawnCapturePoint() {
 
 export function spawnMiniBoss(x, y, id) {
     // Mini boss là một con ma cực kỳ trâu bò và to lớn
-    const hp = 3000 + state.currentLevel * 1000;
+    const hp = 1000 + state.currentLevel * 100;
     state.ghosts.push({
         id: id,
         isMiniBoss: true,

@@ -9,7 +9,9 @@ export const warden = {
 
         // Q: Chấn Động - Gây choáng hẹp xung quanh bảo vệ bản thân
         if (key === "q") {
-            state.activeBuffs.q = 15; // Hiệu ứng 15 frames
+            state.activeBuffs.q = 15;
+            if (!state.skillRangeIndicators) state.skillRangeIndicators = [];
+            state.skillRangeIndicators.push({ x: player.x, y: player.y, radius: 120, life: 30, maxLife: 30, color: "#ffd700" });
             state.ghosts.forEach(g => {
                 if (dist(player.x, player.y, g.x, g.y) < 120) {
                     g.hp -= 2;
@@ -26,6 +28,8 @@ export const warden = {
         // R: Lĩnh Vực Bất Khả Xâm Phạm - Đẩy lùi quái liên tục
         if (key === "r") {
             state.activeBuffs.r = 8 * FPS;
+            if (!state.skillRangeIndicators) state.skillRangeIndicators = [];
+            state.skillRangeIndicators.push({ x: player.x, y: player.y, radius: 180, life: 50, maxLife: 50, color: "#ffd700" });
         }
         return true;
     },
