@@ -1809,20 +1809,48 @@ function drawMinimap(ctx, canvas) {
     });
   }
 
-  // 7. Puzzle runes trên minimap
+  // 7. Puzzle runes + obelisk trên minimap
   if (!state.isBossLevel && !state.bossArenaMode && state.puzzleZone && !state.puzzleZone.solved) {
-    state.puzzleZone.runes.forEach(rune => {
+    const pz = state.puzzleZone;
+    // Obelisk
+    const ox = mmX + pz.clueX * scaleX;
+    const oy = mmY + pz.clueY * scaleY;
+    // Viền ngoài
+    ctx.fillStyle = "rgba(0,0,0,0.7)";
+    ctx.fillRect(ox - 6, oy - 9, 12, 18);
+    // Thân obelisk
+    ctx.fillStyle = pz.clueRevealed ? "#FFD700" : "#aaaaaa";
+    ctx.fillRect(ox - 4, oy - 7, 8, 14);
+    // Ký hiệu
+    ctx.fillStyle = pz.clueRevealed ? "#000" : "#fff";
+    ctx.font = "bold 8px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(pz.clueRevealed ? "!" : "?", ox, oy + 3.5);
+    // Runes
+    pz.runes.forEach(rune => {
       if (rune.activated) return;
-      const x = mmX + rune.x * scaleX;
-      const y = mmY + rune.y * scaleY;
-      ctx.fillStyle = rune.step === state.puzzleZone.currentStep ? "#ffff00" : "#9933ff";
+      const rx = mmX + rune.x * scaleX;
+      const ry = mmY + rune.y * scaleY;
+      const isPending = rune.runeState === "pending";
+      const fillColor = isPending ? "#ff9900" : (rune.step === pz.currentStep ? "#ffff00" : "#cc44ff");
+      // Viền ngoài đen cho dễ nhìn
       ctx.beginPath();
-      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.arc(rx, ry, 8, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(0,0,0,0.7)";
       ctx.fill();
-      ctx.fillStyle = "#fff";
-      ctx.font = "bold 7px Arial";
+      // Vòng tròn màu
+      ctx.beginPath();
+      ctx.arc(rx, ry, 6, 0, Math.PI * 2);
+      ctx.fillStyle = fillColor;
+      ctx.fill();
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      // Ký hiệu
+      ctx.fillStyle = "#000";
+      ctx.font = "bold 8px Arial";
       ctx.textAlign = "center";
-      ctx.fillText(rune.step, x, y + 2.5);
+      ctx.fillText(rune.symbol, rx, ry + 3);
     });
   }
 
@@ -2175,68 +2203,86 @@ function drawPuzzleZone(ctx) {
   const pz = state.puzzleZone;
   if (!pz || pz.solved) return;
 
+  // Vẽ Obelisk Gợi Ý
+  const ox = pz.clueX, oy = pz.clueY;
+  ctx.save();
+  const obeliskPulse = Math.sin(state.frameCount * 0.05) * 6;
+  const obeliskColor = pz.clueRevealed ? "#FFD700" : "#888888";
+  ctx.shadowBlur = pz.clueRevealed ? 25 : 8;
+  ctx.shadowColor = obeliskColor;
+  ctx.strokeStyle = obeliskColor;
+  ctx.lineWidth = 3;
+  ctx.fillStyle = pz.clueRevealed ? "rgba(80,60,0,0.85)" : "rgba(30,30,30,0.85)";
+  // Thân obelisk (hình thang đứng)
+  const ow = 22, oh = 60 + obeliskPulse;
+  ctx.beginPath();
+  ctx.moveTo(ox - ow, oy + oh);
+  ctx.lineTo(ox + ow, oy + oh);
+  ctx.lineTo(ox + ow * 0.5, oy - oh * 0.5);
+  ctx.lineTo(ox, oy - oh);
+  ctx.lineTo(ox - ow * 0.5, oy - oh * 0.5);
+  ctx.closePath();
+  ctx.fill(); ctx.stroke();
+  // Icon
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = obeliskColor;
+  ctx.font = `bold 20px Arial`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(pz.clueRevealed ? "!" : "?", ox, oy);
+  // Label
+  ctx.font = "13px Arial";
+  ctx.fillStyle = obeliskColor;
+  ctx.fillText(pz.clueRevealed ? pz.orderDisplay : "ĐẾN GẦN ĐỂ XEM GỢI Ý", ox, oy + oh + 18);
+  ctx.restore();
+
+  // Vẽ các Rune
   pz.runes.forEach(rune => {
     ctx.save();
     const pulse = Math.sin(state.frameCount * 0.08 + rune.step) * 8;
-    const color = rune.activated ? "#00ffcc" : (rune.step === pz.currentStep ? "#ffff00" : "#9933ff");
+    const isPending = rune.runeState === "pending";
+    const isActivated = rune.runeState === "activated" || rune.activated;
+    const isNext = rune.step === pz.currentStep && !isActivated && !isPending;
+    const color = isActivated ? "#00ffcc" : isPending ? "#ff9900" : isNext ? "#ffff00" : "#9933ff";
 
     // Vòng sáng nền
-    const grad = ctx.createRadialGradient(rune.x, rune.y, 0, rune.x, rune.y, 60 + pulse);
-    grad.addColorStop(0, rune.activated ? "rgba(0,255,200,0.35)" : "rgba(150,0,255,0.25)");
+    const grad = ctx.createRadialGradient(rune.x, rune.y, 0, rune.x, rune.y, 65 + pulse);
+    grad.addColorStop(0, isActivated ? "rgba(0,255,200,0.35)" : isPending ? "rgba(255,100,0,0.35)" : "rgba(150,0,255,0.2)");
     grad.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = grad;
     ctx.beginPath();
-    ctx.arc(rune.x, rune.y, 60 + pulse, 0, Math.PI * 2);
+    ctx.arc(rune.x, rune.y, 65 + pulse, 0, Math.PI * 2);
     ctx.fill();
 
-    // Đá rune
-    ctx.shadowBlur = rune.activated ? 25 : 12;
+    // Hình thoi
+    ctx.shadowBlur = isActivated ? 28 : isPending ? 20 : 12;
     ctx.shadowColor = color;
     ctx.strokeStyle = color;
-    ctx.lineWidth = 3;
-    ctx.fillStyle = rune.activated ? "rgba(0,255,200,0.5)" : "rgba(60,0,120,0.8)";
+    ctx.lineWidth = isPending ? 4 : 3;
+    ctx.fillStyle = isActivated ? "rgba(0,255,200,0.5)" : isPending ? "rgba(120,50,0,0.85)" : "rgba(60,0,120,0.8)";
+    const s = 30 + pulse * 0.3;
     ctx.beginPath();
-    // Hình thoi (diamond)
-    const s = 28 + pulse * 0.3;
     ctx.moveTo(rune.x, rune.y - s);
     ctx.lineTo(rune.x + s * 0.7, rune.y);
     ctx.lineTo(rune.x, rune.y + s);
     ctx.lineTo(rune.x - s * 0.7, rune.y);
     ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
+    ctx.fill(); ctx.stroke();
 
-    // Số thứ tự
+    // Ký hiệu rune (A/B/C/D) — luôn hiển thị
     ctx.shadowBlur = 0;
-    ctx.fillStyle = rune.activated ? "#00ffcc" : "#fff";
+    ctx.fillStyle = isActivated ? "#00ffcc" : isPending ? "#ffcc66" : "#fff";
     ctx.font = `bold 22px Arial`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(rune.step, rune.x, rune.y);
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(rune.symbol, rune.x, rune.y);
 
     // Label trạng thái
-    ctx.font = "14px Arial";
+    ctx.font = "13px Arial";
     ctx.fillStyle = color;
-    ctx.fillText(rune.activated ? "✔" : (rune.step === pz.currentStep ? "← TIẾP THEO" : ""), rune.x, rune.y + s + 18);
+    if (isActivated) ctx.fillText("✔ KẾT NẠP", rune.x, rune.y + s + 18);
+    else if (isPending) ctx.fillText("⚔ TIÊU DIỆT CANH GIỮ!", rune.x, rune.y + s + 18);
 
     ctx.restore();
   });
-
-  // Hiển thị thứ tự cần giải ở trên đầu (world coords): vẽ gần rune chưa kích hoạt tiếp theo
-  const nextRune = pz.runes.find(r => r.step === pz.currentStep);
-  if (nextRune) {
-    ctx.save();
-    ctx.fillStyle = "rgba(0,0,0,0.6)";
-    ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(nextRune.x - 90, nextRune.y - 100, 180, 30, 6);
-    else ctx.rect(nextRune.x - 90, nextRune.y - 100, 180, 30);
-    ctx.fill();
-    ctx.fillStyle = "#ffff00";
-    ctx.font = "bold 16px Arial";
-    ctx.textAlign = "center";
-    ctx.fillText(`GIẢI ĐỐ: ${pz.currentStep}/4`, nextRune.x, nextRune.y - 80);
-    ctx.restore();
-  }
 }
 
 // ===== VẼ CỔNG DỊCH CHUYỂN =====
@@ -2336,10 +2382,11 @@ function drawStageConditionsHUD(ctx, canvas) {
 
   ctx.font = "bold 13px Arial";
   ctx.textAlign = "left";
+  const puzzleLabel = puzzleDone ? "Xong" : pz?.clueRevealed ? `${(pz?.currentStep || 1) - 1}/4 [${pz?.orderDisplay}]` : `${(pz?.currentStep || 1) - 1}/4 [Tìm gợi ý]`;
   const items = [
     { label: `Swarm Zone: ${swarmCount}/${swarmTotal}`, done: swarmCount >= swarmTotal && swarmTotal > 0 },
     { label: `Special Zone: ${specialCount}/2`, done: specialCount >= 2 },
-    { label: `Giải đố: ${puzzleDone ? "Xong" : `${(pz?.currentStep || 1) - 1}/4`}`, done: puzzleDone },
+    { label: `Giải đố: ${puzzleLabel}`, done: puzzleDone },
   ];
   items.forEach((item, i) => {
     ctx.fillStyle = item.done ? "#00ff99" : "#aaaaaa";

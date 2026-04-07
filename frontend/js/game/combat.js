@@ -442,8 +442,8 @@ export function updateBullets(
                 // --- MISSION COMPLETION CHECK ---
                 if (zone.currentKills >= zone.requiredKills) {
                   zone.isCompleted = true;
-                  const xpReward = 500 * state.currentLevel;
-                  const coinReward = 200 * state.currentLevel;
+                  const xpReward = 100 * state.currentLevel;
+                  const coinReward = 50 * state.currentLevel;
                   addExperience(xpReward, changeStateFn);
                   state.player.coins += coinReward;
 
