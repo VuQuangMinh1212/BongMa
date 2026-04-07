@@ -345,7 +345,7 @@ export function update(ctx, canvas, changeStateFn) {
       }
 
       if (!state.explosions) state.explosions = [];
-      state.explosions.push({ x: g.x, y: g.y, radius: g.isHorde ? 12 : 20, life: 15, color: g.isHorde ? "rgba(200, 200, 255, 0.6)" : "rgba(255, 200, 0, 0.8)" });
+      state.explosions.push({ x: g.x, y: g.y, radius: g.isHorde ? 1 : 2, life: 15, color: g.isHorde ? "rgba(200, 200, 255, 0.6)" : "rgba(255, 200, 0, 0.8)" });
 
       if (g.parentZoneId || g.isHorde) { state.ghosts.splice(i, 1); continue; }
       else {
@@ -588,6 +588,8 @@ export function update(ctx, canvas, changeStateFn) {
   // --- 9. CÁC HÀM UPDATE RỜI RẠC & UI ---
   updateCapturePoints(ctx, canvas, changeStateFn);
   updateItems(changeStateFn);
+  updatePuzzleZone();
+  updateStagePortal();
   updateCrates();
   updatePlayerBuffs();
   updateSatelliteDrone();
@@ -618,17 +620,10 @@ export function update(ctx, canvas, changeStateFn) {
     : `Quái: ${activeGhosts}`;
   document.getElementById("coins-count").innerText = `Tiền: ${state.player?.coins || 0}`;
 
-  // Kiểm tra qua màn (Swarm Mode)
-  // Kiểm tra qua màn (Swarm Mode) - Đã vô hiệu hóa tạm thời
-  if (!state.isBossLevel) {
-    let allZonesCleared = state.swarmZones?.every(zone => zone.isCompleted);
-
-    // Tạm thời comment dòng return "STAGE_CLEAR" lại để không tự qua màn.
-    if (allZonesCleared && state.swarmZones?.length > 0) {
-      // TODO: Bạn sẽ kiểm tra điều kiện Puzzle ở đây trong tương lai.
-      // Ví dụ: if (state.isPuzzleSolved) return "STAGE_CLEAR";
-
-      // Hiện tại cứ để trống, game sẽ tiếp tục chạy vô tận ở màn hiện tại.
+  // Kiểm tra qua màn: player bước vào cổng dịch chuyển
+  if (!state.isBossLevel && state.stagePortal?.active) {
+    if (dist(player.x, player.y, state.stagePortal.x, state.stagePortal.y) < state.stagePortal.radius) {
+      return "STAGE_CLEAR";
     }
   }
 
@@ -744,6 +739,9 @@ function updateCapturePoints(ctx, canvas, changeStateFn) {
         state.permanentScars.push({ x: cp.x, y: cp.y, radius: cp.maxRadius * 0.85 });
         spawnCrystal(cp.x, cp.y, cp.rewardType);
         state.floatingTexts.push({ x: cp.x, y: cp.y - 150, text: "CHIẾM ĐÓNG THÀNH CÔNG!", color: "#00FFDD", size: 36, life: 200, opacity: 1 });
+        // Dọn sạch miniBoss liên quan (phòng trường hợp còn sót)
+        const bossIdx = state.ghosts.findIndex(g => g.id === cp.miniBossId || (g.isMiniBoss && dist(g.x, g.y, cp.x, cp.y) < 800));
+        if (bossIdx !== -1) state.ghosts.splice(bossIdx, 1);
       }
 
       if (isInside && state.frameCount % 120 === 0) {
@@ -800,4 +798,85 @@ function updateGodMode() {
   if (gm.timer <= 0) {
     gm.active = false; state.player.speed = gm.prevSpeed; state.player.radius = gm.prevRadius; state.godMode = null;
   }
+}
+
+// ===== PUZZLE ZONE =====
+function updatePuzzleZone() {
+  const pz = state.puzzleZone;
+  if (!pz || pz.solved || state.isBossLevel) return;
+  const player = state.player;
+  if (!player || player.hp <= 0) return;
+
+  for (const rune of pz.runes) {
+    if (rune.activated) continue;
+    if (dist(player.x, player.y, rune.x, rune.y) < 55) {
+      if (rune.step === pz.currentStep) {
+        // Đúng thứ tự
+        rune.activated = true;
+        pz.currentStep++;
+        state.floatingTexts.push({ x: rune.x, y: rune.y - 80, text: `✔ RUNE ${rune.step}`, color: "#00ffcc", size: 28, life: 90, opacity: 1 });
+        // Spawn một đợt quái nhỏ như thử thách
+        for (let i = 0; i < 3 + state.currentLevel; i++) {
+          const a = Math.random() * Math.PI * 2;
+          state.ghosts.push({
+            id: `puzzle_wave_${Date.now()}_${i}`,
+            x: rune.x + Math.cos(a) * (150 + Math.random() * 100),
+            y: rune.y + Math.sin(a) * (150 + Math.random() * 100),
+            radius: 12, hp: 15 + state.currentLevel * 3, maxHp: 15 + state.currentLevel * 3,
+            speed: 1.4, isStunned: 0, historyPath: [],
+          });
+        }
+        if (pz.currentStep > 4) {
+          pz.solved = true;
+          state.floatingTexts.push({ x: player.x, y: player.y - 120, text: "🧩 GIẢI ĐỐ HOÀN THÀNH!", color: "#ff00ff", size: 36, life: 200, opacity: 1 });
+        }
+      } else {
+        // Sai thứ tự — reset + phạt
+        pz.runes.forEach(r => r.activated = false);
+        pz.currentStep = 1;
+        state.floatingTexts.push({ x: rune.x, y: rune.y - 80, text: "✘ SAI THỨ TỰ!", color: "#ff4444", size: 28, life: 90, opacity: 1 });
+        state.screenShake = { timer: 20, intensity: 8 };
+        for (let i = 0; i < 5; i++) {
+          const a = Math.random() * Math.PI * 2;
+          state.ghosts.push({
+            id: `puzzle_penalty_${Date.now()}_${i}`,
+            x: player.x + Math.cos(a) * 200, y: player.y + Math.sin(a) * 200,
+            radius: 12, hp: 20 + state.currentLevel * 4, maxHp: 20 + state.currentLevel * 4,
+            speed: 1.6, isStunned: 0, historyPath: [],
+          });
+        }
+      }
+      break;
+    }
+  }
+}
+
+// ===== CỔNG DỊCH CHUYỂN =====
+function updateStagePortal() {
+  if (state.isBossLevel) return;
+
+  // Kích hoạt cổng khi đủ 3 điều kiện
+  if (!state.stagePortal?.active) {
+    const puzzleSolved = state.puzzleZone?.solved === true;
+    const swarmsDone = state.swarmZones?.length > 0 && state.swarmZones.every(z => z.isCompleted);
+    const specialsDone = (state.capturePoints?.filter(cp => cp.state === "completed").length || 0) >= 2;
+
+    if (puzzleSolved && swarmsDone && specialsDone) {
+      state.stagePortal = {
+        x: state.world.width / 2 + (Math.random() - 0.5) * 400,
+        y: state.world.height / 2 + (Math.random() - 0.5) * 400,
+        radius: 65,
+        active: true,
+        pulse: 0,
+      };
+      state.floatingTexts.push({
+        x: state.world.width / 2, y: state.world.height / 2 - 200,
+        text: "⚡ CỔNG BOSS ĐÃ MỞ! ⚡", color: "#cc00ff", size: 40, life: 300, opacity: 1,
+      });
+      state.screenShake = { timer: 60, intensity: 15 };
+    }
+    return;
+  }
+
+  state.stagePortal.pulse = (state.stagePortal.pulse || 0) + 1;
 }

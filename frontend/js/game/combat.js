@@ -534,10 +534,8 @@ export function updateBullets(
             } else if (!g.isMiniBoss) {
               // SubBoss thông thường bị khựng nhẹ
               g.isStunned = Math.max(g.isStunned || 0, 20);
-            } else if (!g.shieldActive) {
-              // MiniBoss chỉ bị khựng nếu đã vỡ giáp
-              g.isStunned = Math.max(g.isStunned || 0, 20);
             }
+            // MiniBoss: không stun per-hit sau khi khiên vỡ (chỉ stun lúc khiên vỡ - xử lý bên trên)
 
             if (finalDmg > 0) {
               g.hp = (g.hp || 1) - finalDmg;

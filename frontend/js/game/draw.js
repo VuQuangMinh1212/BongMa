@@ -150,6 +150,8 @@ export function draw(ctx, canvas) {
     drawCrates(ctx);
     drawCapturePoints(ctx);
     drawItems(ctx);
+    drawPuzzleZone(ctx);
+    drawStagePortal(ctx);
   }
   drawSatellite(ctx);
   drawGodMode(ctx);
@@ -1503,6 +1505,7 @@ export function draw(ctx, canvas) {
 
   // --- HUD & Vignette ---
   drawHUD(ctx, canvas);
+  if (!state.isBossLevel && !state.bossArenaMode) drawStageConditionsHUD(ctx, canvas);
 
   if (state.playerStatus.burnTimer > 0) {
     drawFireVignette(ctx, canvas);
@@ -1632,68 +1635,6 @@ function drawHUD(ctx, canvas) {
     const activeZone = state.swarmZones.find(sz => sz.active && !sz.isCompleted);
     const completedCount = state.swarmZones.filter(sz => sz.isCompleted).length;
     const totalZones = state.swarmZones.length;
-
-    // Panel nhiệm vụ tổng quát (luôn hiển thị ở góc trên phải)
-    const panelX = canvas.width - 220;
-    const panelY = 80;
-    ctx.save();
-    ctx.fillStyle = "rgba(0, 0, 0, 0.55)";
-    ctx.fillRect(panelX, panelY, 210, 26 + totalZones * 22);
-    ctx.strokeStyle = "#ffaa00";
-    ctx.lineWidth = 1.5;
-    ctx.strokeRect(panelX, panelY, 210, 26 + totalZones * 22);
-
-    ctx.font = "bold 13px Arial";
-    ctx.fillStyle = "#ffcc00";
-    ctx.textAlign = "left";
-    ctx.fillText(`📋 NHIỆM VỤ (${completedCount}/${totalZones})`, panelX + 8, panelY + 16);
-
-    state.swarmZones.forEach((sz, idx) => {
-      const yRow = panelY + 28 + idx * 22;
-      const barW = 140;
-      const prog = Math.min(sz.currentKills / sz.requiredKills, 1);
-
-      // Nền thanh progress
-      ctx.fillStyle = sz.isCompleted ? "rgba(0,200,100,0.3)" : "rgba(255,100,0,0.2)";
-      ctx.fillRect(panelX + 8, yRow, barW, 14);
-
-      // Thanh progress
-      ctx.fillStyle = sz.isCompleted ? "#00cc66" : "#ffaa00";
-      ctx.fillRect(panelX + 8, yRow, barW * prog, 14);
-
-      // Viền
-      ctx.strokeStyle = sz.isCompleted ? "#00ff88" : "#ff8800";
-      ctx.lineWidth = 1;
-      ctx.strokeRect(panelX + 8, yRow, barW, 14);
-
-      // Text số kill
-      ctx.font = "bold 10px Arial";
-      ctx.fillStyle = "white";
-      ctx.textAlign = "center";
-      const label = sz.isCompleted ? "✓ XONG" : `${sz.currentKills}/${sz.requiredKills}`;
-      ctx.fillText(label, panelX + 8 + barW / 2, yRow + 10);
-
-      // Mũi tên chỉ hướng nếu chưa xong
-      if (!sz.isCompleted) {
-        const dx = sz.x - state.player.x;
-        const dy = sz.y - state.player.y;
-        const angle = Math.atan2(dy, dx);
-        const arrowX = panelX + 165;
-        const arrowY = yRow + 7;
-        ctx.save();
-        ctx.translate(arrowX, arrowY);
-        ctx.rotate(angle);
-        ctx.fillStyle = sz.active ? "#00ffcc" : "#ffcc00";
-        ctx.beginPath();
-        ctx.moveTo(10, 0);
-        ctx.lineTo(-5, -5);
-        ctx.lineTo(-5, 5);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-      }
-    });
-    ctx.restore();
 
     // HUD lớn ở dưới khi đang trong zone active
     if (activeZone) {
@@ -1866,6 +1807,40 @@ function drawMinimap(ctx, canvas) {
         ctx.fillText("B", x, y + 3);
       }
     });
+  }
+
+  // 7. Puzzle runes trên minimap
+  if (!state.isBossLevel && !state.bossArenaMode && state.puzzleZone && !state.puzzleZone.solved) {
+    state.puzzleZone.runes.forEach(rune => {
+      if (rune.activated) return;
+      const x = mmX + rune.x * scaleX;
+      const y = mmY + rune.y * scaleY;
+      ctx.fillStyle = rune.step === state.puzzleZone.currentStep ? "#ffff00" : "#9933ff";
+      ctx.beginPath();
+      ctx.arc(x, y, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 7px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(rune.step, x, y + 2.5);
+    });
+  }
+
+  // 8. Cổng dịch chuyển trên minimap
+  if (!state.isBossLevel && state.stagePortal?.active) {
+    const x = mmX + state.stagePortal.x * scaleX;
+    const y = mmY + state.stagePortal.y * scaleY;
+    const blink = Math.sin(state.frameCount * 0.15) > 0;
+    if (blink) {
+      ctx.fillStyle = "#cc00ff";
+      ctx.beginPath();
+      ctx.arc(x, y, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 8px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText("⚡", x, y + 3);
+    }
   }
 }
 
@@ -2192,5 +2167,183 @@ function drawGodMode(ctx) {
   ctx.beginPath();
   ctx.arc(p.x, p.y, p.radius + 40 + pulse, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
+}
+
+// ===== VẼ PUZZLE ZONE (RUNE STONES) =====
+function drawPuzzleZone(ctx) {
+  const pz = state.puzzleZone;
+  if (!pz || pz.solved) return;
+
+  pz.runes.forEach(rune => {
+    ctx.save();
+    const pulse = Math.sin(state.frameCount * 0.08 + rune.step) * 8;
+    const color = rune.activated ? "#00ffcc" : (rune.step === pz.currentStep ? "#ffff00" : "#9933ff");
+
+    // Vòng sáng nền
+    const grad = ctx.createRadialGradient(rune.x, rune.y, 0, rune.x, rune.y, 60 + pulse);
+    grad.addColorStop(0, rune.activated ? "rgba(0,255,200,0.35)" : "rgba(150,0,255,0.25)");
+    grad.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(rune.x, rune.y, 60 + pulse, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Đá rune
+    ctx.shadowBlur = rune.activated ? 25 : 12;
+    ctx.shadowColor = color;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 3;
+    ctx.fillStyle = rune.activated ? "rgba(0,255,200,0.5)" : "rgba(60,0,120,0.8)";
+    ctx.beginPath();
+    // Hình thoi (diamond)
+    const s = 28 + pulse * 0.3;
+    ctx.moveTo(rune.x, rune.y - s);
+    ctx.lineTo(rune.x + s * 0.7, rune.y);
+    ctx.lineTo(rune.x, rune.y + s);
+    ctx.lineTo(rune.x - s * 0.7, rune.y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // Số thứ tự
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = rune.activated ? "#00ffcc" : "#fff";
+    ctx.font = `bold 22px Arial`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(rune.step, rune.x, rune.y);
+
+    // Label trạng thái
+    ctx.font = "14px Arial";
+    ctx.fillStyle = color;
+    ctx.fillText(rune.activated ? "✔" : (rune.step === pz.currentStep ? "← TIẾP THEO" : ""), rune.x, rune.y + s + 18);
+
+    ctx.restore();
+  });
+
+  // Hiển thị thứ tự cần giải ở trên đầu (world coords): vẽ gần rune chưa kích hoạt tiếp theo
+  const nextRune = pz.runes.find(r => r.step === pz.currentStep);
+  if (nextRune) {
+    ctx.save();
+    ctx.fillStyle = "rgba(0,0,0,0.6)";
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(nextRune.x - 90, nextRune.y - 100, 180, 30, 6);
+    else ctx.rect(nextRune.x - 90, nextRune.y - 100, 180, 30);
+    ctx.fill();
+    ctx.fillStyle = "#ffff00";
+    ctx.font = "bold 16px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText(`GIẢI ĐỐ: ${pz.currentStep}/4`, nextRune.x, nextRune.y - 80);
+    ctx.restore();
+  }
+}
+
+// ===== VẼ CỔNG DỊCH CHUYỂN =====
+function drawStagePortal(ctx) {
+  const portal = state.stagePortal;
+  if (!portal || !portal.active) return;
+
+  const { x, y, radius, pulse } = portal;
+  const t = pulse || 0;
+  const breathe = Math.sin(t * 0.05) * 10;
+
+  ctx.save();
+  // Vùng sáng ngoài
+  const outerGrad = ctx.createRadialGradient(x, y, 0, x, y, radius * 2.5 + breathe);
+  outerGrad.addColorStop(0, "rgba(180,0,255,0.3)");
+  outerGrad.addColorStop(0.5, "rgba(80,0,200,0.15)");
+  outerGrad.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = outerGrad;
+  ctx.beginPath();
+  ctx.arc(x, y, radius * 2.5 + breathe, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Vòng xoáy portal
+  ctx.globalCompositeOperation = "lighter";
+  for (let ring = 0; ring < 3; ring++) {
+    const ringR = radius * (0.5 + ring * 0.25) + breathe * 0.3;
+    const alpha = 0.7 - ring * 0.2;
+    ctx.strokeStyle = `rgba(220,0,255,${alpha})`;
+    ctx.lineWidth = 4 - ring;
+    ctx.shadowBlur = 20;
+    ctx.shadowColor = "#cc00ff";
+    ctx.beginPath();
+    ctx.arc(x, y, ringR, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.globalCompositeOperation = "source-over";
+
+  // Lõi portal xoay
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(t * 0.04);
+  const innerGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, radius * 0.8);
+  innerGrad.addColorStop(0, "rgba(255,255,255,0.9)");
+  innerGrad.addColorStop(0.4, "rgba(200,0,255,0.8)");
+  innerGrad.addColorStop(1, "rgba(60,0,150,0.2)");
+  ctx.fillStyle = innerGrad;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius * 0.8, 0, Math.PI * 2);
+  ctx.fill();
+  // Hình sao xoay trong lõi
+  ctx.strokeStyle = "rgba(255,255,255,0.6)";
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(Math.cos(a) * radius * 0.7, Math.sin(a) * radius * 0.7);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // Label
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 20px Arial";
+  ctx.textAlign = "center";
+  ctx.shadowBlur = 10;
+  ctx.shadowColor = "#cc00ff";
+  ctx.fillText("⚡ CỔNG BOSS ⚡", x, y - radius - 18);
+  ctx.restore();
+}
+
+// ===== HUD: ĐIỀU KIỆN QUA MÀN =====
+function drawStageConditionsHUD(ctx, canvas) {
+  const pz = state.puzzleZone;
+  const cp = state.capturePoints || [];
+  const sz = state.swarmZones || [];
+
+  const puzzleDone = pz?.solved === true;
+  const swarmCount = sz.filter(z => z.isCompleted).length;
+  const swarmTotal = sz.length;
+  const specialCount = cp.filter(c => c.state === "completed").length;
+  const allDone = puzzleDone && swarmCount >= swarmTotal && swarmTotal > 0 && specialCount >= 2;
+
+  if (allDone && state.stagePortal?.active) return; // Ẩn khi portal đã mở
+
+  const panelX = canvas.width - 230;
+  const panelY = 10;
+  const panelW = 220;
+  const panelH = 90;
+
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.6)";
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(panelX, panelY, panelW, panelH, 8);
+  else ctx.rect(panelX, panelY, panelW, panelH);
+  ctx.fill();
+
+  ctx.font = "bold 13px Arial";
+  ctx.textAlign = "left";
+  const items = [
+    { label: `Swarm Zone: ${swarmCount}/${swarmTotal}`, done: swarmCount >= swarmTotal && swarmTotal > 0 },
+    { label: `Special Zone: ${specialCount}/2`, done: specialCount >= 2 },
+    { label: `Giải đố: ${puzzleDone ? "Xong" : `${(pz?.currentStep || 1) - 1}/4`}`, done: puzzleDone },
+  ];
+  items.forEach((item, i) => {
+    ctx.fillStyle = item.done ? "#00ff99" : "#aaaaaa";
+    ctx.fillText((item.done ? "✔ " : "○ ") + item.label, panelX + 10, panelY + 24 + i * 22);
+  });
   ctx.restore();
 }

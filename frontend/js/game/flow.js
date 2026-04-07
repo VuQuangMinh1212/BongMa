@@ -207,16 +207,43 @@ export function initGame(isNextLevel = false) {
     for (let i = 0; i < 10; i++) {
       spawnCrate();
     }
-    // Sinh thêm 1-2 điểm chiếm đóng mỗi màn
-    const numCP = 1 + Math.floor(Math.random() * 2);
-    for (let i = 0; i < numCP; i++) {
+    // Luôn sinh đúng 2 điểm chiếm đóng (specialZone) mỗi màn
+    state.capturePoints = [];
+    for (let i = 0; i < 2; i++) {
       spawnCapturePoint();
     }
+
+    // --- KHỞI TẠO PUZZLE ZONE ---
+    state.puzzleZone = null;
+    state.stagePortal = null;
+    const numRunes = 4;
+    const runePositions = [];
+    for (let i = 0; i < numRunes; i++) {
+      let rx, ry, attempts = 0;
+      do {
+        rx = 600 + Math.random() * (state.world.width - 1200);
+        ry = 600 + Math.random() * (state.world.height - 1200);
+        attempts++;
+      } while (
+        attempts < 50 &&
+        runePositions.some(p => dist(rx, ry, p.x, p.y) < 500)
+      );
+      runePositions.push({ x: rx, y: ry });
+    }
+    // Xáo thứ tự để step 1-4 xuất hiện ở vị trí ngẫu nhiên
+    runePositions.sort(() => Math.random() - 0.5);
+    state.puzzleZone = {
+      runes: runePositions.map((pos, idx) => ({ x: pos.x, y: pos.y, step: idx + 1, activated: false })),
+      currentStep: 1,
+      solved: false,
+    };
   } else {
     // Màn boss: xoá sạch mọi thực thể thuộc map thường
     state.crates = [];
     state.capturePoints = [];
     state.swarmZones = [];
+    state.puzzleZone = null;
+    state.stagePortal = null;
   }
 
   updateHealthUI();
