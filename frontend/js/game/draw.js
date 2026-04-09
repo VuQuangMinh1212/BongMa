@@ -310,7 +310,74 @@ export function draw(ctx, canvas) {
     }
     ctx.restore();
   });
+  state.elementalZones.forEach((z) => {
+    ctx.save();
 
+    const alpha = z.life / z.maxLife;
+
+    // ===== BASE GLOW =====
+    const grad = ctx.createRadialGradient(z.x, z.y, 0, z.x, z.y, z.radius);
+    grad.addColorStop(0, z.color + "88");
+    grad.addColorStop(1, z.color + "00");
+
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(z.x, z.y, z.radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // ===== SPECIAL EFFECT =====
+    switch (z.element) {
+      case "fire":
+        ctx.globalCompositeOperation = "lighter";
+        ctx.fillStyle = "rgba(255,100,0,0.3)";
+        ctx.beginPath();
+        ctx.arc(z.x, z.y, z.radius * 0.7, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+
+      case "ice":
+        ctx.strokeStyle = "rgba(200,255,255,0.5)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(z.x, z.y, z.radius, 0, Math.PI * 2);
+        ctx.stroke();
+        break;
+
+      case "lightning":
+        for (let i = 0; i < 5; i++) {
+          ctx.beginPath();
+          ctx.moveTo(z.x, z.y);
+          ctx.lineTo(
+            z.x + (Math.random() - 0.5) * z.radius * 2,
+            z.y + (Math.random() - 0.5) * z.radius * 2,
+          );
+          ctx.strokeStyle = "#ffff00";
+          ctx.stroke();
+        }
+        break;
+
+      case "wind":
+        ctx.strokeStyle = "#ccffff";
+        ctx.beginPath();
+        ctx.arc(
+          z.x,
+          z.y,
+          z.radius * (0.8 + Math.sin(state.frameCount * 0.2) * 0.2),
+          0,
+          Math.PI * 2,
+        );
+        ctx.stroke();
+        break;
+
+      case "earth":
+        ctx.fillStyle = "rgba(120,80,50,0.3)";
+        ctx.beginPath();
+        ctx.arc(z.x, z.y, z.radius, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+    }
+    ctx.restore();
+  });
   // --- Draw Global Hazard Overlay ---
   if (state.globalHazard.active) {
     ctx.save();
@@ -745,71 +812,56 @@ export function draw(ctx, canvas) {
       }
     }
   }
+  // ===== ELEMENTAL ENEMIES (VẼ TRÊN GHOST) =====
+  state.elementalEnemies.forEach((e) => {
+    ctx.save();
 
+    // glow nhẹ
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = state.elementColors[e.element];
+
+    ctx.beginPath();
+    ctx.arc(e.x, e.y, e.radius, 0, Math.PI * 2);
+    ctx.fillStyle = state.elementColors[e.element];
+    ctx.fill();
+
+    // outline
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.restore();
+  });
   let isScoutQ = char === "scout" && buffs.q > 0;
   let isFrostR = char === "frost" && buffs.r > 0;
 
   for (let b of bullets) {
-    // --- Fire Styling ---
-    if (b.style === 1) {
+    // ===== METEOR (ưu tiên trước) =====
+    if (b.isMeteor) {
       ctx.save();
-      const pulse = (Math.sin(state.frameCount * 0.3) + 1) * 0.5;
-      ctx.shadowBlur = 10 + pulse * 10;
-      ctx.shadowColor = "#ff4400";
 
-      // Dynamic Flame Trail
       if (state.frameCount % 2 === 0) {
         state.particles.push({
           x: b.x,
           y: b.y,
-          vx: Math.random() - 0.5,
-          vy: Math.random() - 0.5,
-          life: 30,
-          color: Math.random() > 0.5 ? "#ffaa00" : "#ff4400",
-          size: 3 + Math.random() * b.radius,
-        });
-      }
-
-      // Heat core
-      const grad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.radius);
-      grad.addColorStop(0, "#ffffff");
-      grad.addColorStop(0.4, "#ffff00");
-      grad.addColorStop(1, "#ff4400");
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-      continue; // Handled fire specifically
-    }
-    // --- Meteor Styling ---
-    if (b.isMeteor) {
-      ctx.save();
-      // 1. Khói và Lửa hạt
-      if (state.frameCount % 2 === 0) {
-        state.particles.push({
-          x: b.x + (Math.random() - 0.5) * b.radius,
-          y: b.y + (Math.random() - 0.5) * b.radius,
           vx: (Math.random() - 0.5) * 0.5,
-          vy: -Math.random() * 1,
+          vy: -Math.random(),
           life: 40,
           color: "#222222",
           size: 5 + Math.random() * 10,
         });
       }
 
-      // 2. Các mảnh đá vụn bay xung quanh
       ctx.fillStyle = "#3a1c0d";
       for (let j = 1; j <= 4; j++) {
         let r = b.radius * 0.3;
-        let dx = Math.cos(state.frameCount * 0.2 * j) * (b.radius + 15); // Xoay quanh
-        let dy = -10 - j * 15; // Kéo dài ra phía sau
+        let dx = Math.cos(state.frameCount * 0.2 * j) * (b.radius + 15);
+        let dy = -10 - j * 15;
         ctx.beginPath();
         ctx.arc(b.x + dx, b.y + dy, r, 0, Math.PI * 2);
         ctx.fill();
       }
 
-      // 3. Đá chính (Khối đa giác)
       ctx.fillStyle = "#4a2c1d";
       ctx.beginPath();
       const sides = 7;
@@ -818,100 +870,167 @@ export function draw(ctx, canvas) {
         const r = b.radius * (0.8 + Math.random() * 0.4);
         const px = b.x + Math.cos(angle) * r;
         const py = b.y + Math.sin(angle) * r;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
       }
       ctx.closePath();
       ctx.fill();
 
-      // Viền nham thạch
       ctx.strokeStyle = "#ff4400";
       ctx.lineWidth = 3;
       ctx.stroke();
 
-      ctx.shadowBlur = 40;
-      ctx.shadowColor = "#ff2200";
       ctx.restore();
       continue;
     }
 
-    // --- Wind Styling ---
-    if (b.style === 4) {
-      ctx.strokeStyle = "rgba(200, 255, 255, 0.9)";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(
-        b.x,
-        b.y,
-        b.radius + Math.sin(state.frameCount * 0.2) * 3,
-        0,
-        Math.PI * 2,
-      );
-      ctx.stroke();
-    }
+    // ===== SHURIKEN =====
     if (b.isShuriken) {
       ctx.save();
       ctx.translate(b.x, b.y);
       ctx.rotate(state.frameCount * 0.3);
+
       ctx.beginPath();
       ctx.moveTo(-b.radius, 0);
       ctx.lineTo(b.radius, 0);
       ctx.moveTo(0, -b.radius);
       ctx.lineTo(0, b.radius);
+
       ctx.strokeStyle = "#00ffcc";
       ctx.lineWidth = 8;
       ctx.stroke();
+
       ctx.restore();
-    } else if (b.style === 5) {
-      ctx.save();
-      ctx.translate(b.x, b.y);
-      ctx.rotate(Math.atan2(b.vy, b.vx));
-      ctx.beginPath();
-      ctx.moveTo(15, 0);
-      ctx.lineTo(-10, -5);
-      ctx.lineTo(-10, 5);
-      ctx.closePath();
-      ctx.fillStyle = "#00ffff";
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = "#00ffff";
-      ctx.fill();
-      ctx.restore();
-    } else {
-      ctx.beginPath();
-      let drawRadius = b.radius;
-      if (!b.isPlayer && isScoutQ) drawRadius += 3;
+      continue;
+    }
 
-      ctx.arc(b.x, b.y, drawRadius, 0, Math.PI * 2);
-      if (b.isPlayer) {
-        // 🔥 PLAYER BULLET → dùng element
-        if (player.characterId === "elementalist") {
-          ctx.fillStyle = state.elementColors[b.element] || "#00ffcc";
-        } else {
-          ctx.fillStyle = "#00ffcc";
-        }
-      } else {
-        // Color based on style
-        ctx.fillStyle = "#ff4444";
-        if (b.style === 1) ctx.fillStyle = "#ff0000"; // Fire
-        if (b.style === 2) ctx.fillStyle = "#00ffff"; // Ice
-        if (b.style === 3) ctx.fillStyle = "#ffff00"; // Thunder
-        if (b.style === 0) ctx.fillStyle = "#8b4513"; // Earth
-        if (b.style === 4) ctx.fillStyle = "rgba(180, 255, 255, 0.6)"; //Wind
+    // ===== STYLE SYSTEM =====
+    switch (b.style) {
+      // 🔥 FIRE
+      case 1: {
+        ctx.save();
 
-        if (isFrostR && dist(b.x, b.y, player.x, player.y) < 200) {
-          ctx.fillStyle = "#00ffff";
-          ctx.shadowBlur = 10;
-          ctx.shadowColor = "#00ffff";
+        const pulse = (Math.sin(state.frameCount * 0.3) + 1) * 0.5;
+        ctx.shadowBlur = 10 + pulse * 10;
+        ctx.shadowColor = "#ff4400";
+
+        if (state.frameCount % 2 === 0) {
+          state.particles.push({
+            x: b.x,
+            y: b.y,
+            vx: Math.random() - 0.5,
+            vy: Math.random() - 0.5,
+            life: 30,
+            color: Math.random() > 0.5 ? "#ffaa00" : "#ff4400",
+            size: 3 + Math.random() * b.radius,
+          });
         }
 
-        if (isScoutQ) {
-          ctx.shadowBlur = 15;
-          ctx.shadowColor = "#ff0000";
-          ctx.fillStyle = "#ffaaaa";
-        }
+        const grad = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.radius);
+        grad.addColorStop(0, "#ffffff");
+        grad.addColorStop(0.4, "#ffff00");
+        grad.addColorStop(1, "#ff4400");
+
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.restore();
+        break;
       }
-      ctx.fill();
-      ctx.shadowBlur = 0;
+
+      // ❄ ICE
+      case 2: {
+        ctx.save();
+
+        ctx.fillStyle = "#aeefff";
+        ctx.beginPath();
+        ctx.moveTo(b.x, b.y - b.radius);
+        ctx.lineTo(b.x - b.radius / 2, b.y + b.radius);
+        ctx.lineTo(b.x + b.radius / 2, b.y + b.radius);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "#66ccff";
+
+        ctx.restore();
+        break;
+      }
+
+      // ⚡ LIGHTNING
+      case 3: {
+        ctx.save();
+
+        ctx.strokeStyle = "#ffff66";
+        ctx.lineWidth = 2;
+
+        ctx.beginPath();
+        ctx.moveTo(b.x, b.y);
+        ctx.lineTo(
+          b.x - b.vx * (3 + Math.random()),
+          b.y - b.vy * (3 + Math.random()),
+        );
+        ctx.stroke();
+
+        ctx.restore();
+        break;
+      }
+
+      // 🌪 WIND
+      case 4: {
+        ctx.save();
+
+        ctx.strokeStyle = "#ccffff";
+        let pulse = Math.sin(state.frameCount * 0.3) * 2;
+
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius + pulse, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.restore();
+        break;
+      }
+
+      // 🌍 EARTH (FIX CHUẨN)
+      case 5: {
+        ctx.save();
+
+        ctx.fillStyle = "#8b5a2b";
+
+        ctx.beginPath();
+        ctx.arc(
+          b.x + (Math.random() - 0.5) * 1.5,
+          b.y + (Math.random() - 0.5) * 1.5,
+          b.radius,
+          0,
+          Math.PI * 2,
+        );
+        ctx.fill();
+
+        ctx.strokeStyle = "#5a3b1a";
+        ctx.stroke();
+
+        ctx.restore();
+        break;
+      }
+
+      // DEFAULT
+      default: {
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, b.radius, 0, Math.PI * 2);
+
+        if (b.isPlayer) {
+          ctx.fillStyle =
+            player.characterId === "elementalist"
+              ? state.elementColors[b.element] || "#00ffcc"
+              : "#00ffcc";
+        } else {
+          ctx.fillStyle = "#ff4444";
+        }
+
+        ctx.fill();
+      }
     }
   }
 

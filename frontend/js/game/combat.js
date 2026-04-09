@@ -5,6 +5,7 @@ import { UI, updateHealthUI, updateXPUI } from "../ui.js";
 import { playSound } from "./audio.js";
 import { spawnSatelliteDrone } from "../world/element.js";
 import { spawnHazard } from "../entities/helpers.js";
+import { spawnElementalZone } from "../game/elementalZone.js";
 
 export function playerTakeDamage(ctx, canvas, changeStateFn, amount = 1) {
   if (state.player.isInvincible) return; // FIX I-FRAMES
@@ -417,7 +418,66 @@ export function updateBullets(
         bullets.splice(i, 1);
         continue;
       }
+      // ===== HIT ELEMENTAL ENEMIES =====
+      let hitElemental = false;
 
+      for (let j = state.elementalEnemies.length - 1; j >= 0; j--) {
+        let e = state.elementalEnemies[j];
+
+        if (b.hitList.includes(e)) continue;
+
+        if (dist(b.x, b.y, e.x, e.y) < e.radius + b.radius) {
+          b.hitList.push(e);
+
+          let finalDmg = b.damage || 1;
+
+          // 🔥 ELEMENT EFFECT (giống ghost cho consistency)
+          if (b.element === "fire") finalDmg *= 1.5;
+          if (b.element === "ice") e.isStunned = Math.max(e.isStunned || 0, 20);
+          if (b.element === "lightning")
+            e.isStunned = Math.max(e.isStunned || 0, 40);
+
+          if (b.element === "wind") {
+            let dx = e.x - b.x;
+            let dy = e.y - b.y;
+            let len = Math.hypot(dx, dy) || 1;
+            e.x += (dx / len) * 10;
+            e.y += (dy / len) * 10;
+          }
+
+          e.hp -= finalDmg;
+
+          // 💀 chết → spawn zone
+          if (e.hp <= 0) {
+            spawnElementalZone(e);
+            state.elementalEnemies.splice(j, 1);
+          }
+
+          hitElemental = true;
+
+          // xử lý pierce giống ghost
+          if (!b.pierce) {
+            if (b.bounces > 0) {
+              b.bounces--;
+              let angle = Math.atan2(b.vy, b.vx);
+              angle += Math.PI + (Math.random() - 0.5);
+              let speed = Math.sqrt(b.vx * b.vx + b.vy * b.vy);
+              b.vx = Math.cos(angle) * speed;
+              b.vy = Math.sin(angle) * speed;
+              hitElemental = false;
+            }
+          } else {
+            hitElemental = false;
+          }
+
+          if (hitElemental) break;
+        }
+      }
+
+      if (hitElemental) {
+        bullets.splice(i, 1);
+        continue;
+      }
       let hitGhost = false;
       for (let j = ghosts.length - 1; j >= 0; j--) {
         let g = ghosts[j];
@@ -432,10 +492,15 @@ export function updateBullets(
         ) {
           b.hitList.push(g);
 
-          if ((state.isBossLevel && !g.isMiniBoss && !g.isSubBoss) || g.parentZoneId) {
+          if (
+            (state.isBossLevel && !g.isMiniBoss && !g.isSubBoss) ||
+            g.parentZoneId
+          ) {
             ghosts.splice(j, 1);
             if (g.parentZoneId) {
-              const zone = state.swarmZones.find((sz) => sz.id === g.parentZoneId);
+              const zone = state.swarmZones.find(
+                (sz) => sz.id === g.parentZoneId,
+              );
               if (zone && !zone.isCompleted) {
                 zone.currentKills++;
 
@@ -455,7 +520,7 @@ export function updateBullets(
                     color: "#00ffcc",
                     size: 30,
                     opacity: 1,
-                    life: 100
+                    life: 100,
                   });
                   // Hiển thị tiền bay lên
                   state.floatingTexts.push({
@@ -465,7 +530,7 @@ export function updateBullets(
                     color: "#ffcc00",
                     size: 30,
                     opacity: 1,
-                    life: 100
+                    life: 100,
                   });
 
                   // Hiệu ứng Mission Clear bằng loạt nổ màu Cyan
@@ -476,7 +541,7 @@ export function updateBullets(
                       y: zone.y + (Math.random() - 0.5) * zone.radius * 1.5,
                       radius: 60,
                       life: 45,
-                      color: "rgba(0, 255, 255, 0.8)"
+                      color: "rgba(0, 255, 255, 0.8)",
                     });
                   }
                 }
@@ -583,6 +648,10 @@ export function updateBullets(
       const hitRadius = b.style === 5 ? 25 : b.radius + player.radius; // Larger hit for spears
 
       if (d < hitRadius) {
+        if (state.player.gracePeriod <= 0) {
+          playerTakeDamage(ctx, canvas, changeStateFn, b.damage || 1);
+          state.player.gracePeriod = 20;
+        }
         // Apply Element-Specific Debuffs
         if (b.style === 2 || b.style === 5) state.playerStatus.slowTimer = 90; // Ice Slow
         if (b.style === 3) state.playerStatus.stunTimer = 15; // Thunder Stun
@@ -730,7 +799,7 @@ export function applyCaptureReward(type) {
       active: true,
       timer: 15 * 60, // 15 giây (Sử dụng 60 làm FPS chuẩn)
       prevSpeed: state.player.speed,
-      prevRadius: state.player.radius
+      prevRadius: state.player.radius,
     };
     state.player.speed *= 1.4; // Giảm từ 2.0 xuống 1.4
     state.player.radius *= 1.5; // Giảm từ 2.0 xuống 1.5
@@ -744,7 +813,7 @@ export function applyCaptureReward(type) {
       text: "+1 VÉ QUAY RARE!",
       color: "#00ffff",
       life: 120,
-      opacity: 1
+      opacity: 1,
     });
   } else if (type === "EPIC_TICKET") {
     state.resources.epicTickets = (state.resources.epicTickets || 0) + 1;
@@ -754,12 +823,10 @@ export function applyCaptureReward(type) {
       text: "+1 VÉ QUAY EPIC!",
       color: "#ff00ff",
       life: 150,
-      opacity: 1
+      opacity: 1,
     });
   }
 
   // Hồi phục 100% máu như phần thưởng phụ
   state.player.hp = state.player.maxHp;
 }
-
-

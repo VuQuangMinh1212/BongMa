@@ -195,63 +195,6 @@ export function initGame(isNextLevel = false) {
     for (let i = 0; i < 2; i++) {
       spawnCapturePoint();
     }
-
-    // // --- KHỞI TẠO PUZZLE ZONE ---
-    // state.puzzleZone = null;
-    // state.stagePortal = null;
-    // const numRunes = 4;
-    // const runePositions = [];
-    // for (let i = 0; i < numRunes; i++) {
-    //   let rx,
-    //     ry,
-    //     attempts = 0;
-    //   do {
-    //     rx = 600 + Math.random() * (state.world.width - 1200);
-    //     ry = 600 + Math.random() * (state.world.height - 1200);
-    //     attempts++;
-    //   } while (
-    //     attempts < 50 &&
-    //     runePositions.some((p) => dist(rx, ry, p.x, p.y) < 500)
-    //   );
-    //   runePositions.push({ x: rx, y: ry });
-    // }
-    // // Gán ký hiệu A/B/C/D cho từng rune (vị trí cố định), thứ tự kích hoạt được xáo ngẫu nhiên
-    // const runeSymbols = ["A", "B", "C", "D"];
-    // const stepOrder = [1, 2, 3, 4].sort(() => Math.random() - 0.5); // thứ tự kích hoạt ngẫu nhiên
-    // const symbolByStep = {}; // step → symbol
-    // stepOrder.forEach((step, idx) => {
-    //   symbolByStep[step] = runeSymbols[idx];
-    // });
-    // const orderDisplay = [1, 2, 3, 4].map((s) => symbolByStep[s]).join(" → "); // "B → D → A → C"
-
-    // // Obelisk gợi ý ở trung tâm bản đồ (cách player lúc spawn)
-    // let clueX, clueY;
-    // let clueAttempts = 0;
-    // do {
-    //   clueX = 800 + Math.random() * (state.world.width - 1600);
-    //   clueY = 800 + Math.random() * (state.world.height - 1600);
-    //   clueAttempts++;
-    // } while (
-    //   clueAttempts < 50 &&
-    //   dist(clueX, clueY, state.player?.x || 400, state.player?.y || 500) < 800
-    // );
-
-    // state.puzzleZone = {
-    //   runes: runePositions.map((pos, idx) => ({
-    //     x: pos.x,
-    //     y: pos.y,
-    //     symbol: runeSymbols[idx], // ký hiệu hiển thị (A/B/C/D)
-    //     step: stepOrder[idx], // thứ tự kích hoạt nội bộ
-    //     activated: false,
-    //     runeState: "idle", // "idle" | "pending" | "activated"
-    //   })),
-    //   currentStep: 1,
-    //   solved: false,
-    //   clueX,
-    //   clueY,
-    //   clueRevealed: false,
-    //   orderDisplay, // "B → D → A → C" — thứ tự đúng
-    // };
     // ===== NEW PUZZLE SYSTEM =====
     state.puzzleZone = null; // giữ lại nếu code khác còn dùng (tạm thời)
     state.stagePortal = null;

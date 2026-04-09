@@ -4,6 +4,11 @@ import { dist } from "../utils.js";
 import { UI, updateHealthUI } from "../ui.js";
 import { updateActiveCharacter } from "../characters/characterRegistry.js";
 import { updatePuzzle } from "../game/puzzle_manager.js";
+import { updateElementalZones } from "../game/elementalZone.js";
+import {
+  updateElementalEnemies,
+  spawnElementalEnemy,
+} from "../entities/elementalEnemies.js";
 import {
   updateBullets,
   playerTakeDamage,
@@ -19,7 +24,8 @@ import { ATTACK_MODES, SPECIAL_SKILLS } from "../entities/bosses/patterns.js";
 export function update(ctx, canvas, changeStateFn) {
   const { player, boss, keys, mouse, activeBuffs } = state;
   const buffs = activeBuffs || { q: 0, e: 0, r: 0 };
-
+  updateElementalZones(state.player);
+  updateElementalEnemies(state.player);
   // --- 1. Quản lý Camera & Boundaries ---
   state.camera.width = canvas.width;
   state.camera.height = canvas.height;
@@ -47,12 +53,18 @@ export function update(ctx, canvas, changeStateFn) {
 
   // --- 2. Reset Modifiers Mỗi Frame (Core của Refactor Nhân Vật) ---
   state.playerSpeedMultiplier = 1;
+  state.playerSpeedMultiplier = 1;
+  if (state.playerStatus.stunTimer > 0) {
+    state.playerStatus.stunTimer--;
+  }
+  if (state.playerStatus.slowTimer > 0) {
+    state.playerStatus.slowTimer--;
+  }
   state.playerFireRateMultiplier = 1;
   state.playerMultiShotModifier = player.multiShot || 1;
   state.playerBouncesModifier = player.bounces || 0;
   state.playerCanShootModifier = player.characterId !== "painter"; // Painter click liên tục, xử lý trong file riêng
   state.timeFrozenModifier = false;
-
   // Reset Flag Kỹ năng đặc biệt (Dành cho súng/đạn)
   state.assassinE_Active = false;
   state.sniperQ_Active = false;
@@ -723,9 +735,13 @@ export function update(ctx, canvas, changeStateFn) {
       if (g.x > 0) activeGhosts++;
     }
   }
-
+  if (state.frameCount % 180 === 0) {
+    spawnElementalEnemy(
+      state.player.x + (Math.random() - 0.5) * 800,
+      state.player.y + (Math.random() - 0.5) * 800,
+    );
+  }
   // --- 8. MÔI TRƯỜNG & TƯƠNG TÁC (Hazards, Safe Zones, Warnings) ---
-
   // Hazards
   if (state.hazards) {
     state.hazards = state.hazards.filter((h) => {
@@ -1211,7 +1227,6 @@ function updateGodMode() {
     state.godMode = null;
   }
 }
-
 
 // ===== CỔNG DỊCH CHUYỂN =====
 function updateStagePortal() {

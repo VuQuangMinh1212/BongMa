@@ -200,6 +200,8 @@ export const state = {
   ],
   selectedMap: "fire",
   pendingBossType: null,      // boss sẽ spawn sau
+  elementalZones: [], // zone của quái (KHÔNG liên quan boss)
+  elementalEnemies: [], // quái có yếu tố (để render hiệu ứng)
 };
 
 export function resetGlitchState() {
