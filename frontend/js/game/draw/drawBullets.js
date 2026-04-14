@@ -375,6 +375,111 @@ function drawEngineerBullet(ctx, b) {
   ctx.restore();
 }
 
+function drawDruidBullet(ctx, b) {
+  const speed = Math.hypot(b.vx, b.vy) || 1;
+  const nx = b.vx / speed;
+  const ny = b.vy / speed;
+  const px = -ny;
+  const py = nx;
+  const angle = Math.atan2(b.vy, b.vx);
+  const pulse = (Math.sin(state.frameCount * 0.24 + b.x * 0.01) + 1) * 0.5;
+  const R = Math.max(7, b.radius * 2.1);
+  const split = b.isSplit;
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+
+  if (state.frameCount % 2 === 0) {
+    state.particles.push({
+      x: b.x - nx * R * 1.2 + px * (Math.random() - 0.5) * R,
+      y: b.y - ny * R * 1.2 + py * (Math.random() - 0.5) * R,
+      vx: -nx * 0.45 + (Math.random() - 0.5) * 0.35,
+      vy: -ny * 0.45 - Math.random() * 0.2,
+      life: 20,
+      color: Math.random() > 0.35 ? "#00ff88" : "#beff78",
+      size: 1.8 + Math.random() * 2.6,
+    });
+  }
+
+  const tail = ctx.createLinearGradient(
+    b.x - nx * R * 3.2,
+    b.y - ny * R * 3.2,
+    b.x + nx * R,
+    b.y + ny * R,
+  );
+  tail.addColorStop(0, "rgba(0, 255, 136, 0)");
+  tail.addColorStop(0.42, split ? "rgba(190, 255, 120, 0.34)" : "rgba(0, 255, 136, 0.28)");
+  tail.addColorStop(1, "rgba(239, 255, 216, 0.76)");
+  ctx.beginPath();
+  ctx.moveTo(b.x + nx * R * 1.1, b.y + ny * R * 1.1);
+  ctx.quadraticCurveTo(
+    b.x - nx * R * 1.7 + px * R * (0.7 + pulse * 0.2),
+    b.y - ny * R * 1.7 + py * R * (0.7 + pulse * 0.2),
+    b.x - nx * R * 3.0,
+    b.y - ny * R * 3.0,
+  );
+  ctx.quadraticCurveTo(
+    b.x - nx * R * 1.7 - px * R * (0.7 + pulse * 0.2),
+    b.y - ny * R * 1.7 - py * R * (0.7 + pulse * 0.2),
+    b.x + nx * R * 1.1,
+    b.y + ny * R * 1.1,
+  );
+  ctx.fillStyle = tail;
+  ctx.shadowBlur = 18;
+  ctx.shadowColor = "#00ff88";
+  ctx.fill();
+
+  ctx.translate(b.x, b.y);
+  ctx.rotate(angle + Math.sin(state.frameCount * 0.08) * 0.12);
+
+  const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 2);
+  glow.addColorStop(0, "rgba(245, 255, 220, 0.92)");
+  glow.addColorStop(0.38, split ? "rgba(190, 255, 120, 0.55)" : "rgba(0, 255, 136, 0.52)");
+  glow.addColorStop(1, "rgba(10, 70, 20, 0)");
+  ctx.beginPath();
+  ctx.ellipse(0, 0, R * (1.25 + pulse * 0.18), R * (0.82 + pulse * 0.12), 0, 0, Math.PI * 2);
+  ctx.fillStyle = glow;
+  ctx.shadowBlur = 24;
+  ctx.shadowColor = split ? "#beff78" : "#00ff88";
+  ctx.fill();
+
+  ctx.fillStyle = split ? "#beff78" : "#00ff88";
+  ctx.strokeStyle = "rgba(245, 255, 220, 0.85)";
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(R * 1.25, 0);
+  ctx.bezierCurveTo(R * 0.25, -R * 0.92, -R * 0.95, -R * 0.62, -R * 1.35, 0);
+  ctx.bezierCurveTo(-R * 0.95, R * 0.62, R * 0.25, R * 0.92, R * 1.25, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.strokeStyle = "rgba(245, 255, 220, 0.9)";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(-R * 0.95, 0);
+  ctx.lineTo(R * 0.92, 0);
+  ctx.stroke();
+
+  for (let i = -1; i <= 1; i += 2) {
+    ctx.beginPath();
+    ctx.moveTo(-R * 0.28, 0);
+    ctx.quadraticCurveTo(R * 0.1, i * R * 0.22, R * 0.55, i * R * 0.32);
+    ctx.strokeStyle = "rgba(239, 255, 216, 0.55)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  ctx.beginPath();
+  ctx.arc(R * 0.22, 0, R * 0.28, 0, Math.PI * 2);
+  ctx.fillStyle = "#efffd8";
+  ctx.shadowBlur = 18;
+  ctx.shadowColor = "#efffd8";
+  ctx.fill();
+
+  ctx.restore();
+}
+
 // ===== BULLETS (14+ styles) =====
 export function drawBullets(ctx) {
   const { bullets, player } = state;
@@ -466,6 +571,11 @@ export function drawBullets(ctx) {
 
     if (b.isPlayer && b.visualStyle === "engineer_plasma") {
       drawEngineerBullet(ctx, b);
+      continue;
+    }
+
+    if (b.isPlayer && b.visualStyle === "druid_seed") {
+      drawDruidBullet(ctx, b);
       continue;
     }
 

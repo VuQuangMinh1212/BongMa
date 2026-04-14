@@ -25,6 +25,8 @@ export function spawnBullet(sx, sy, tx, ty, isPlayer, style = 0, source = "enemy
                     ? "warden_sigil"
                     : ownerCharacter === "engineer"
                       ? "engineer_plasma"
+                      : ownerCharacter === "druid"
+                        ? "druid_seed"
                   : null,
         bounces: isPlayer ? state.player.bounces || 0 : 0,
         pierce: isPlayer ? state.player.pierce || false : false,
