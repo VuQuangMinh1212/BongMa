@@ -367,14 +367,14 @@ export function updateBullets(
 
           const hpPercent = Math.max(0, (boss.hp / boss.maxHp) * 100);
           UI.bossHp.style.width = hpPercent + "%";
+          UI.bossHpTrail.style.width = hpPercent + "%";
 
-          // Phase 3 escalating color
-          if (hpPercent < 33) {
-            UI.bossHp.style.backgroundColor = "#ff00ff"; // Purple peril
-            UI.bossHp.style.boxShadow = "0 0 20px #ff00ff";
-          } else {
-            UI.bossHp.style.backgroundColor = "#ff4444";
-            UI.bossHp.style.boxShadow = "none";
+          // Add shake effect to boss UI
+          if (boss.hp < boss.maxHp) {
+            UI.bossUi.classList.remove("boss-shaking");
+            // Force reflow to restart animation
+            void UI.bossUi.offsetWidth; 
+            UI.bossUi.classList.add("boss-shaking");
           }
 
           if (state.player.characterId === "scout" && buffs.r > 0) {
@@ -671,7 +671,14 @@ export function updateBullets(
   if (isSummonerQ && Math.random() < 0.15) {
     if (boss && dist(player.x, player.y, boss.x, boss.y) < boss.radius + 45) {
       boss.hp -= 1;
-      UI.bossHp.style.width = Math.max(0, (boss.hp / boss.maxHp) * 100) + "%";
+      const hpPercent = Math.max(0, (boss.hp / boss.maxHp) * 100);
+      UI.bossHp.style.width = hpPercent + "%";
+      UI.bossHpTrail.style.width = hpPercent + "%";
+      
+      UI.bossUi.classList.remove("boss-shaking");
+      void UI.bossUi.offsetWidth; 
+      UI.bossUi.classList.add("boss-shaking");
+
       if (boss.hp <= 0) {
         state.player.coins = (state.player.coins || 0) + 100;
         state._bossKilled = true;

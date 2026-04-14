@@ -179,28 +179,144 @@ canvas {
   top: 15px;
   left: 50%;
   transform: translateX(-50%);
-  width: 400px;
+  width: 500px;
   display: none;
-  text-align: center;
+  font-family: inherit;
+  transition: opacity 0.3s;
 }
 
-#boss-name {
+#boss-ui.boss-shaking {
+  animation: hitShake 0.3s cubic-bezier(.36,.07,.19,.97) both;
+}
+@keyframes hitShake {
+  10%, 90% { transform: translateX(translate(calc(-50% - 2px), 0)); }
+  20%, 80% { transform: translateX(translate(calc(-50% + 4px), 0)); }
+  30%, 50%, 70% { transform: translateX(translate(calc(-50% - 6px), 0)); }
+  40%, 60% { transform: translateX(translate(calc(-50% + 6px), 0)); }
+}
+
+#boss-name-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 5px;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
   color: var(--boss-name-color, #ff0055);
-  text-shadow: 0 0 5px var(--boss-name-shadow, red);
+  text-shadow: 0 0 10px var(--boss-name-shadow, red);
 }
 
 #boss-hp-bg {
+  position: relative;
   width: 100%;
-  height: 12px;
-  background: #333;
-  border: 1px solid #000;
+  height: 18px;
+  background: rgba(20, 20, 20, 0.8);
+  border: 2px solid #555;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+
+#boss-hp-trail {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: white;
+  transition: width 0.4s ease-out 0.1s;
+  box-shadow: 0 0 10px white;
 }
 
 #boss-hp-fill {
-  width: 100%;
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, var(--boss-hp-start, #ff0000), var(--boss-hp-end, #ff0055));
+  transition: width 0.05s linear;
+}
+
+#boss-hp-markers {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  display: flex;
+  pointer-events: none;
+}
+
+.boss-hp-marker {
   height: 100%;
-  background: linear-gradient(90deg, #ff0000, #ff0055);
-  transition: width 0.1s;
+  border-right: 2px solid rgba(0,0,0,0.7);
+  box-shadow: 1px 0 0 rgba(255,255,255,0.2) inset;
+}
+
+/* ===============================
+   THEMES 
+   =============================== */
+.boss-theme-fire #boss-hp-bg {
+  border-color: #ffaa00;
+  box-shadow: 0 0 15px rgba(255, 68, 0, 0.5);
+}
+.boss-theme-fire #boss-hp-trail { background: #ffe600; }
+
+.boss-theme-earth #boss-hp-bg {
+  border-color: #a0522d;
+  border-width: 3px;
+  border-radius: 0;
+}
+.boss-theme-earth #boss-hp-trail { background: #deb887; }
+
+.boss-theme-ice #boss-hp-bg {
+  border-color: #00ffff;
+  border-radius: 10px;
+  box-shadow: 0 0 15px rgba(0, 255, 255, 0.6);
+}
+.boss-theme-ice #boss-hp-trail { background: #ffffff; }
+
+.boss-theme-wind #boss-hp-bg {
+  border-color: #00ffcc;
+  border-radius: 20px;
+  border-style: dashed;
+}
+.boss-theme-wind #boss-hp-trail { background: #ccfff5; }
+
+.boss-theme-thunder #boss-hp-bg {
+  border-color: #ffff00;
+  box-shadow: 0 0 20px rgba(255,255,0,0.8);
+  border-style: double;
+  border-width: 4px;
+}
+.boss-theme-thunder #boss-name {
+  animation: flicker 2s infinite alternate;
+}
+
+.boss-theme-void #boss-hp-bg {
+  border-radius: 50% / 10%;
+  border-color: #5500aa;
+  box-shadow: 0 0 20px #220044, 0 0 40px #5500aa inset;
+  background: #1a0033;
+}
+.boss-theme-void #boss-hp-trail { background: #aa00ff; }
+
+.boss-theme-omni #boss-hp-bg {
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  animation: rainbowBorder 3s linear infinite;
+  box-shadow: 0 0 20px rgba(255,255,255,0.2);
+}
+@keyframes rainbowBorder {
+  0% { border-color: red; } 33% { border-color: lime; } 66% { border-color: blue; } 100% { border-color: red; }
+}
+
+.boss-theme-glitch #boss-hp-bg {
+  animation: glitch-box 0.2s steps(2, start) infinite;
+  border: 1px solid #00ffff;
+  box-shadow: 4px 4px 0 #ff00ff;
+}
+@keyframes glitch-box {
+  0% { clip-path: inset(10% 0 30% 0); transform: translate(2px, -2px); }
+  50% { clip-path: inset(50% 0 10% 0); transform: translate(-2px, 2px); }
+  100% { clip-path: inset(0 0 0 0); transform: translate(0, 0); }
 }
 
 .shop-info {

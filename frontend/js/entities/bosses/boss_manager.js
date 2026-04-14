@@ -32,9 +32,9 @@ export const BOSS_TYPES = {
     originalColor: "#ff4400",
     icon: "🔥",
     phases: [
-      { attackModes: [0, 1, 2], special: "Inferno Pulse", speedMult: 1.0 },
-      { attackModes: [3, 4], special: "Meteor Strike", speedMult: 1.3 },
-      { attackModes: [0, 2, 4], ultimate: "SUPERNOVA", speedMult: 1.6 },
+      { attackModes: [0, 1, 2], special: ["Inferno Pulse", "Flame Pillar"], speedMult: 1.0 },
+      { attackModes: [3, 4], special: ["Meteor Strike", "Magma Splash", "Eruption Wall"], speedMult: 1.3 },
+      { attackModes: [0, 2, 4], special: ["Inferno Pulse", "Flame Pillar", "Meteor Strike", "Magma Splash", "Eruption Wall"], ultimate: "SUPERNOVA", speedMult: 1.6 },
     ],
   },
 
@@ -48,9 +48,9 @@ export const BOSS_TYPES = {
     elementColor: "#d2b48c",
     icon: "⛰️",
     phases: [
-      { attackModes: [15, 16], special: "Seismic Rift", speedMult: 1.0 },
-      { attackModes: [17, 18], special: "Earth Spikes", speedMult: 1.3 },
-      { attackModes: [16, 18], ultimate: "EARTHQUAKE", speedMult: 1.5 },
+      { attackModes: [15, 16], special: ["Seismic Rift", "Rock Prison"], speedMult: 1.0 },
+      { attackModes: [17, 18], special: ["Earth Spikes", "Boulder Roll", "Tectonic Slam"], speedMult: 1.3 },
+      { attackModes: [16, 18], special: ["Seismic Rift", "Rock Prison", "Earth Spikes", "Boulder Roll", "Tectonic Slam"], ultimate: "EARTHQUAKE", speedMult: 1.5 },
     ],
   },
 
@@ -64,9 +64,9 @@ export const BOSS_TYPES = {
     elementColor: "#aaffff",
     icon: "❄️",
     phases: [
-      { attackModes: [5, 6], special: "Frost Nova", speedMult: 1.0 },
-      { attackModes: [7, 8], special: "Icicle Rain", speedMult: 1.4 },
-      { attackModes: [6, 8], ultimate: "GLACIAL AGE", speedMult: 1.6 },
+      { attackModes: [5, 6], special: ["Frost Nova", "Blizzard Barrage"], speedMult: 1.0 },
+      { attackModes: [7, 8], special: ["Icicle Rain", "Frozen Wall", "Permafrost"], speedMult: 1.4 },
+      { attackModes: [6, 8], special: ["Frost Nova", "Blizzard Barrage", "Icicle Rain", "Frozen Wall", "Permafrost"], ultimate: "GLACIAL AGE", speedMult: 1.6 },
     ],
   },
 
@@ -80,10 +80,9 @@ export const BOSS_TYPES = {
     elementColor: "#ccfff5",
     icon: "🌪️",
     phases: [
-      { attackModes: [20, 21], special: "Cyclone Barrage", speedMult: 1.0 },
-      { attackModes: [22, 23], special: "Vacuum Wave", speedMult: 1.5 },
-      // THÊM MỚI:
-      { attackModes: [21, 23], ultimate: "HURRICANE", speedMult: 2.0 },
+      { attackModes: [20, 21], special: ["Cyclone Barrage", "Blade Gale"], speedMult: 1.0 },
+      { attackModes: [22, 23], special: ["Vacuum Wave", "Typhoon Eye", "Air Shatter"], speedMult: 1.5 },
+      { attackModes: [21, 23], special: ["Cyclone Barrage", "Blade Gale", "Vacuum Wave", "Typhoon Eye", "Air Shatter"], ultimate: "HURRICANE", speedMult: 2.0 },
     ],
   },
 
@@ -97,10 +96,9 @@ export const BOSS_TYPES = {
     elementColor: "#ffffaa",
     icon: "⚡",
     phases: [
-      { attackModes: [10, 11], special: "Tesla Field", speedMult: 1.0 },
-      { attackModes: [12, 13], special: "Chain Lightning", speedMult: 1.5 },
-      // THÊM MỚI:
-      { attackModes: [11, 13], ultimate: "HEAVEN'S WRATH", speedMult: 1.8 },
+      { attackModes: [10, 11], special: ["Tesla Field", "Ball Lightning"], speedMult: 1.0 },
+      { attackModes: [12, 13], special: ["Chain Lightning", "EMP Burst", "Ionized Field"], speedMult: 1.5 },
+      { attackModes: [11, 13], special: ["Tesla Field", "Ball Lightning", "Chain Lightning", "EMP Burst", "Ionized Field"], ultimate: "HEAVEN'S WRATH", speedMult: 1.8 },
     ],
   },
 
@@ -164,25 +162,25 @@ export const BOSS_TYPES = {
     icon: "🌌",
     phases: [
       {
-        attackModes: [70, 34], // Đạn Void (70) và Homing Mine (34)
-        // Phase 1 xài 2 chiêu bắn tia và vòng xoáy
-        special: ["DARK_MATTER_BEAM", "ECLIPSE_RING"],
+        attackModes: [70, 34],
+        special: ["DARK_MATTER_BEAM", "ECLIPSE_RING", "ABYSSAL_RIFT"],
         speedMult: 1.0,
       },
       {
-        attackModes: [71, 35], // Bão xoắn ốc (71) và Black Hole Pull (35)
-        // Phase 2 đổi bài sang 2 chiêu bóp nghẹt và xé nứt mặt đất
-        special: ["GRAVITY_CRUSH", "COSMIC_FRACTURE"],
+        attackModes: [71, 35],
+        special: ["GRAVITY_CRUSH", "COSMIC_FRACTURE", "SINGULARITY_BOMB", "NULL_ZONE"],
         speedMult: 1.3,
       },
       {
-        attackModes: [70, 71, 36], // Kết hợp cả đạn và Void Rifts (36)
-        // Phase cuối: Xoay tua cả 5 chiêu độc quyền (Thêm cục Hố Đen STAR_DEVOURER)
+        attackModes: [70, 71, 36],
         special: [
           "DARK_MATTER_BEAM",
-          "GRAVITY_CRUSH",
           "ECLIPSE_RING",
+          "ABYSSAL_RIFT",
+          "GRAVITY_CRUSH",
           "COSMIC_FRACTURE",
+          "SINGULARITY_BOMB",
+          "NULL_ZONE",
           "STAR_DEVOURER",
         ],
         ultimate: "EVENT_HORIZON",

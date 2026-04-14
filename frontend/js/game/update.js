@@ -290,23 +290,33 @@ export function update(ctx, canvas, changeStateFn) {
 
   // XỬ LÝ BOSS CHẾT (Dành cho MỌI LOẠI BOSS)
   if (boss && boss.hp <= 0) {
-    state.player.coins = (state.player.coins || 0) + 100; // Thưởng tiền
-    state.boss = null;
-    state.isBossLevel = false;
+    // Lần đầu boss chết: bắt đầu animation 120 frame (2 giây)
+    if (!boss.deathTimer) {
+      boss.deathTimer = 120;
+      boss.deathX = boss.x;
+      boss.deathY = boss.y;
+      // Dọn sân chiến (giữ boss lại để draw animation)
+      state.bullets = [];
+      state.bossBeams = [];
+      state.groundWarnings = [];
+      state.safeZones = [];
+      state.hazards = [];
+      state.glitch.matrixMode = false;
+      state.glitch.invertControls = false;
+      state.cinematicEffects.fogAlpha = 0;
+    }
 
-    // Dọn dẹp rác trên sân
-    state.bullets = [];
-    state.bossBeams = [];
-    state.groundWarnings = [];
-    state.safeZones = [];
-    state.hazards = []; // Dọn sạch bẫy
+    boss.deathTimer--;
 
-    // Reset hiệu ứng cinematic
-    state.glitch.matrixMode = false;
-    state.glitch.invertControls = false;
-    state.cinematicEffects.fogAlpha = 0;
-
-    return "BOSS_KILLED";
+    if (boss.deathTimer <= 0) {
+      // Animation xong — dọn sạch hoàn toàn
+      state.player.coins = (state.player.coins || 0) + 100;
+      state.boss = null;
+      state.isBossLevel = false;
+      return "BOSS_KILLED";
+    }
+    // Đang phát animation — không update gì thêm
+    return null;
   }
   // Update Bullets
   updateBullets(ctx, canvas, changeStateFn, state.timeFrozenModifier);
@@ -771,9 +781,13 @@ export function update(ctx, canvas, changeStateFn) {
     });
   }
 
-  // Global Hazards (Bão tuyết, bão sấm)
+  // Global Hazards (Bão tuyết, bão sấm) — chỉ active khi boss đã kích hoạt ultimate
   if (state.globalHazard && state.globalHazard.active) {
     state.globalHazard.timer--;
+    // Grace period 90 frame sau khi ultimate kích hoạt để player kịp vào SafeZone
+    const gracePeriod = state.globalHazard.graceTimer > 0;
+    if (state.globalHazard.graceTimer > 0) state.globalHazard.graceTimer--;
+
     let inSafeZone = false;
     for (let sz of state.safeZones || []) {
       if (dist(player.x, player.y, sz.x, sz.y) < sz.radius) {
@@ -781,7 +795,7 @@ export function update(ctx, canvas, changeStateFn) {
         break;
       }
     }
-    if (!inSafeZone) {
+    if (!inSafeZone && !gracePeriod) {
       if (state.frameCount % 20 === 0)
         playerTakeDamage(
           ctx,
@@ -819,25 +833,6 @@ export function update(ctx, canvas, changeStateFn) {
   if (state.groundWarnings) {
     state.groundWarnings = state.groundWarnings.filter((w) => {
       w.timer--;
-      const distToCenter = dist(player.x, player.y, w.x, w.y);
-      if (w.type === "geyser" || w.type === "laser") {
-        const inVerticalBeam =
-          Math.abs(player.x - w.x) < w.radius && player.y <= w.y;
-        if (distToCenter < w.radius || inVerticalBeam) {
-          state.playerStatus.burnTimer = Math.max(
-            state.playerStatus.burnTimer,
-            15,
-          );
-          if (state.frameCount % 30 === 0)
-            playerTakeDamage(ctx, canvas, changeStateFn, 0.5);
-        }
-      } else if (w.type === "meteor" || w.type === "spike") {
-        if (distToCenter < w.radius)
-          state.playerStatus.slowTimer = Math.max(
-            state.playerStatus.slowTimer,
-            2,
-          );
-      }
       return w.timer > 0;
     });
   }
@@ -930,8 +925,10 @@ export function update(ctx, canvas, changeStateFn) {
     let secs = (state.scoreTime % 60).toString().padStart(2, "0");
     UI.timer.innerText = `${mins}:${secs} / ${maxMins}:${maxSecs}`;
   }
-
-  updatePuzzle(ctx);
+  // Puzzle chỉ update khi KHÔNG ở boss arena
+  if (!state.isBossLevel && !state.bossArenaMode) {
+    updatePuzzle(ctx);
+  }
 
   return null;
 }

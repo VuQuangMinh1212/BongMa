@@ -16,6 +16,8 @@ export const UI = {
   shieldIcon: document.getElementById("shield-icon"),
   bossUi: document.getElementById("boss-ui"),
   bossHp: document.getElementById("boss-hp-fill"),
+  bossHpTrail: document.getElementById("boss-hp-trail"),
+  bossHpMarkers: document.getElementById("boss-hp-markers"),
   bossName: document.getElementById("boss-name"),
   xpBar: document.getElementById("xp-bar-fill"),
   xpText: document.getElementById("xp-text"),
@@ -227,9 +229,38 @@ export function updateBossUI() {
   const boss = state.boss;
   const root = document.documentElement;
 
-  if (!boss || !boss.phaseColors) return;
+  if (!boss) return;
+
+  if (!boss.phaseColors) {
+    const c = boss.color || "#ff0055";
+    boss.phaseColors = [
+      { start: c, end: c },
+      { start: "#ff4444", end: "#ff00ff" },
+      { start: "#ff00ff", end: "#00ffff" },
+      { start: "#aa00ff", end: "#ff0000" },
+      { start: "#ffff00", end: "#ffffff" },
+    ];
+  }
 
   const ratio = boss.hp / boss.maxHp;
+
+  // Handle markers if not present
+  if (UI.bossHpMarkers.childElementCount === 0) {
+    const segments = boss.phaseCount || (boss.bossType === "omni" ? 5 : 3);
+    for (let i = 1; i < segments; i++) {
+        let marker = document.createElement("div");
+        marker.className = "boss-hp-marker";
+        marker.style.width = (100 / segments) + "%";
+        UI.bossHpMarkers.appendChild(marker);
+    }
+  }
+
+  // Update theme
+  const bossThemeClass = `boss-theme-${boss.bossType || boss.id || "default"}`;
+  if (!UI.bossUi.classList.contains(bossThemeClass)) {
+    UI.bossUi.className = ""; // clear all
+    UI.bossUi.classList.add(bossThemeClass);
+  }
 
   let phase;
   if (boss.phaseCount === 5) {
@@ -243,13 +274,11 @@ export function updateBossUI() {
 
   // Check if the phase has changed
   if (boss.currentPhase !== phase) {
-    boss.currentPhase = phase; // Update the current phase
-
-    // Trigger phase transition animation
+    boss.currentPhase = phase;
     const bossUI = document.getElementById("boss-ui");
     if (bossUI) {
       bossUI.classList.add("phase-transition");
-      setTimeout(() => bossUI.classList.remove("phase-transition"), 300); // Remove class after animation
+      setTimeout(() => bossUI.classList.remove("phase-transition"), 300);
     }
   }
 
@@ -260,6 +289,14 @@ export function updateBossUI() {
   root.style.setProperty("--boss-name-shadow", current.start);
   root.style.setProperty("--boss-hp-start", current.start);
   root.style.setProperty("--boss-hp-end", current.end);
+
+  // Glitch boss special effect
+  if (bossThemeClass === "boss-theme-glitch" && ratio < 0.3) {
+      const glitchedNames = ["!@#*&^", "E R R O R", "0x000F", boss.name];
+      document.getElementById("boss-name").innerText = glitchedNames[Math.floor(Math.random() * glitchedNames.length)];
+  } else {
+      document.getElementById("boss-name").innerText = boss.name;
+  }
 }
 
 export function updateCharacterUI(character) {

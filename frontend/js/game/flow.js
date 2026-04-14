@@ -351,6 +351,8 @@ export function startBossFight() {
   UI.bossUi.style.display = "block";
   UI.bossName.innerText = state.boss.name;
   UI.bossHp.style.width = "100%";
+  if (UI.bossHpTrail) UI.bossHpTrail.style.width = "100%";
+  if (UI.bossHpMarkers) UI.bossHpMarkers.innerHTML = "";
 
   state.screenShake = { x: 0, y: 0, timer: 45, intensity: 18 };
 
@@ -521,6 +523,8 @@ export function startBossArenaFight(bossType, changeStateFn, gameLoopFn) {
   UI.bossUi.style.display = "block";
   UI.bossName.innerText = state.boss.name;
   UI.bossHp.style.width = "100%";
+  if (UI.bossHpTrail) UI.bossHpTrail.style.width = "100%";
+  if (UI.bossHpMarkers) UI.bossHpMarkers.innerHTML = "";
   UI.timer.innerText = "BOSS ARENA";
 
   changeState("PLAYING", gameLoopFn);

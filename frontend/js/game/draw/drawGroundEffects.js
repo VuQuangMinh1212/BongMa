@@ -1,17 +1,144 @@
 import { state } from "../../state.js";
 
 // ===== GROUND WARNINGS =====
+// ===== GROUND WARNINGS =====
 export function drawGroundWarnings(ctx) {
   if (!state.groundWarnings) return;
 
   state.groundWarnings.forEach((w) => {
     const progress = Math.max(0, 1 - w.timer / (w.maxTimer || 60));
-
     if (isNaN(w.x) || isNaN(w.y)) return;
 
     ctx.save();
 
-    if (w.type === "meteor") {
+    if (w.type === "fire_warn") {
+      // Vòng tròn cam đỏ + ngọn lửa
+      ctx.beginPath();
+      ctx.arc(w.x, w.y, w.radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 60, 0, ${0.1 + progress * 0.2})`;
+      ctx.fill();
+      ctx.strokeStyle = `rgba(255, 100, 0, ${0.5 + progress * 0.5})`;
+      ctx.lineWidth = 2 + progress * 3;
+      ctx.stroke();
+
+      if (progress > 0.3 && state.frameCount % 4 === 0) {
+        state.particles.push({
+          x: w.x + (Math.random() - 0.5) * w.radius * 1.5,
+          y: w.y + (Math.random() - 0.5) * w.radius * 1.5,
+          vx: 0, vy: -1 - Math.random() * 2,
+          life: 15, color: "#ff8800", size: 2 + Math.random() * 2,
+        });
+      }
+    } else if (w.type === "stone_warn") {
+      // Vòng nứt đất nâu
+      ctx.beginPath();
+      ctx.arc(w.x, w.y, w.radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(139, 69, 19, ${0.1 + progress * 0.3})`;
+      ctx.fill();
+      ctx.strokeStyle = `rgba(160, 82, 45, ${0.8})`;
+      ctx.lineWidth = 3;
+      ctx.setLineDash([8, 8]);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      
+      // Vẽ thêm vài nét đứt bên trong
+      if (progress > 0.5) {
+        ctx.strokeStyle = `rgba(100, 40, 10, ${progress})`;
+        for(let i=0; i<3; i++) {
+            ctx.beginPath();
+            ctx.moveTo(w.x + (Math.random()-0.5)*w.radius, w.y + (Math.random()-0.5)*w.radius);
+            ctx.lineTo(w.x + (Math.random()-0.5)*w.radius, w.y + (Math.random()-0.5)*w.radius);
+            ctx.stroke();
+        }
+      }
+    } else if (w.type === "ice_warn") {
+      // Snowflake 6 cạnh trắng xanh
+      ctx.beginPath();
+      ctx.arc(w.x, w.y, w.radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(0, 255, 255, ${0.1 + progress * 0.2})`;
+      ctx.fill();
+      
+      ctx.strokeStyle = `rgba(150, 255, 255, ${0.6 + progress * 0.4})`;
+      ctx.lineWidth = 2;
+      for(let i=0; i<6; i++) {
+          let a = (i/6)*Math.PI*2 + state.frameCount*0.02;
+          ctx.beginPath();
+          ctx.moveTo(w.x, w.y);
+          ctx.lineTo(w.x + Math.cos(a)*w.radius, w.y + Math.sin(a)*w.radius);
+          ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.arc(w.x, w.y, w.radius, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (w.type === "wind_warn") {
+      // Vòng xoáy xanh ngọc
+      ctx.strokeStyle = `rgba(100, 255, 200, ${0.5 + progress * 0.5})`;
+      ctx.lineWidth = 3;
+      for (let i = 0; i < 3; i++) {
+        let a = state.frameCount * 0.1 + (i * Math.PI*2/3);
+        ctx.beginPath();
+        ctx.arc(w.x, w.y, w.radius * (0.3 + progress*0.7), a, a + Math.PI);
+        ctx.stroke();
+      }
+    } else if (w.type === "thunder_warn") {
+      // Vòng vàng điện
+      ctx.beginPath();
+      ctx.arc(w.x, w.y, w.radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 255, 0, ${0.1 + progress * 0.1})`;
+      ctx.fill();
+      
+      ctx.strokeStyle = `rgba(255, 255, 50, ${0.5 + Math.random()*0.5})`;
+      ctx.lineWidth = 2 + Math.random() * 2;
+      ctx.setLineDash([10, 5, 2, 5]);
+      ctx.lineDashOffset = -state.frameCount * 2;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      
+      if (progress > 0.6 && Math.random() > 0.5) {
+          ctx.beginPath();
+          ctx.moveTo(w.x, w.y);
+          ctx.lineTo(w.x + (Math.random()-0.5)*w.radius, w.y + (Math.random()-0.5)*w.radius);
+          ctx.stroke();
+      }
+    } else if (w.type === "void_warn") {
+      // Vòng tím đen, hút vào tâm
+      let r = w.radius * (1 - progress*0.2); // Hơi thu lại
+      ctx.beginPath();
+      ctx.arc(w.x, w.y, r, 0, Math.PI * 2);
+      let grad = ctx.createRadialGradient(w.x, w.y, 0, w.x, w.y, r);
+      grad.addColorStop(0, `rgba(0, 0, 0, ${progress * 0.8})`);
+      grad.addColorStop(0.8, `rgba(100, 0, 150, ${0.3 + progress * 0.4})`);
+      grad.addColorStop(1, "rgba(0, 0, 0, 0)");
+      ctx.fillStyle = grad;
+      ctx.fill();
+      
+      ctx.strokeStyle = "rgba(150, 0, 200, 0.6)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    } else if (w.type === "omni_warn") {
+      // 5 màu xen kẽ
+      ctx.lineWidth = 4;
+      let colors = ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#00ffff"];
+      for(let i=0; i<5; i++) {
+          ctx.strokeStyle = colors[i];
+          ctx.globalAlpha = 0.5 + progress*0.5;
+          ctx.beginPath();
+          ctx.arc(w.x, w.y, w.radius, (i/5)*Math.PI*2 + state.frameCount*0.05, ((i+1)/5)*Math.PI*2 + state.frameCount*0.05);
+          ctx.stroke();
+      }
+      ctx.globalAlpha = 1.0;
+    } else if (w.type === "pixel_warn") {
+      // Block pixel
+      ctx.fillStyle = Math.random() > 0.5 ? "rgba(0, 255, 255, 0.4)" : "rgba(255, 0, 255, 0.4)";
+      ctx.fillRect(w.x - w.radius, w.y - w.radius, w.radius*2, w.radius*2);
+      ctx.strokeStyle = "#fff";
+      ctx.strokeRect(w.x - w.radius, w.y - w.radius, w.radius*2, w.radius*2);
+      if (progress > 0.5) {
+         ctx.fillStyle = "#fff";
+         ctx.font = "14px monospace";
+         ctx.fillText("!ERR", w.x - 15, w.y);
+      }
+    } else if (w.type === "meteor") {
       ctx.fillStyle = `rgba(15, 0, 0, ${progress * 0.6})`;
       ctx.beginPath();
       ctx.arc(w.x, w.y, w.radius * progress, 0, Math.PI * 2);
@@ -45,28 +172,10 @@ export function drawGroundWarnings(ctx) {
       ctx.beginPath();
       ctx.arc(w.x, w.y, w.radius * (0.4 + progress * 0.6), 0, Math.PI * 2);
       ctx.stroke();
-
-      if (progress > 0.5 && state.frameCount % 3 === 0) {
-        state.particles.push({
-          x: w.x + (Math.random() - 0.5) * w.radius,
-          y: w.y + (Math.random() - 0.5) * w.radius,
-          vx: (Math.random() - 0.5) * 0.5,
-          vy: -1 - Math.random(),
-          life: 20,
-          color: "#ffaa00",
-          size: 2 + Math.random() * 3,
-        });
-      }
     } else if (w.type === "spike") {
       const alpha = 0.2 + progress * 0.6;
       ctx.beginPath();
-      ctx.arc(
-        w.x + (Math.random() - 0.5) * 3,
-        w.y + (Math.random() - 0.5) * 3,
-        w.radius,
-        0,
-        Math.PI * 2,
-      );
+      ctx.arc(w.x + (Math.random() - 0.5) * 3, w.y + (Math.random() - 0.5) * 3, w.radius, 0, Math.PI * 2);
       ctx.fillStyle = `rgba(100, 50, 20, ${alpha * 0.3})`;
       ctx.fill();
       ctx.strokeStyle = `rgba(139, 69, 19, ${alpha})`;
@@ -81,23 +190,8 @@ export function drawGroundWarnings(ctx) {
         let a = (i * Math.PI * 2) / 3 + progress;
         ctx.beginPath();
         ctx.moveTo(w.x, w.y);
-        ctx.lineTo(
-          w.x + Math.cos(a) * w.radius * 0.8,
-          w.y + Math.sin(a) * w.radius * 0.8,
-        );
+        ctx.lineTo(w.x + Math.cos(a) * w.radius * 0.8, w.y + Math.sin(a) * w.radius * 0.8);
         ctx.stroke();
-      }
-
-      if (progress > 0.7 && state.frameCount % 2 === 0) {
-        state.particles.push({
-          x: w.x + (Math.random() - 0.5) * w.radius,
-          y: w.y + (Math.random() - 0.5) * w.radius,
-          vx: Math.random() - 0.5,
-          vy: -1 - Math.random(),
-          life: 20,
-          color: "#8b4513",
-          size: 2 + Math.random() * 3,
-        });
       }
     } else {
       // Default: column laser
@@ -141,6 +235,7 @@ export function drawGroundWarnings(ctx) {
     ctx.restore();
   });
 }
+
 
 // ===== STORM LIGHTNINGS =====
 export function drawStormLightnings(ctx) {
