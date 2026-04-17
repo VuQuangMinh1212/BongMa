@@ -1,4 +1,5 @@
 import { state } from "../../state.js";
+import { drawAlchemistPlayer } from "../../characters/legendary/alchemist.js";
 import { drawBerserkerPlayer } from "../../characters/legendary/berserker.js";
 import { drawBrawlerPlayer } from "../../characters/common/brawler.js";
 import { drawDruidPlayer } from "../../characters/common/druid.js";
@@ -231,6 +232,11 @@ export function drawPlayer(ctx) {
 
   if (char === "sharpshooter") {
     drawSharpshooterPlayer(ctx, state, buffs, isInvulnSkill);
+    return;
+  }
+
+  if (char === "alchemist") {
+    drawAlchemistPlayer(ctx, state, buffs, isInvulnSkill);
     return;
   }
 

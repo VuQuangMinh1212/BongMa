@@ -14,6 +14,7 @@ const PLAYER_BULLET_VISUALS = {
     gunner: "gunner_round",
     knight: "knight_blade",
     oracle: "oracle_eye",
+    alchemist: "alchemist_flask",
     sharpshooter: "sharpshooter_mark",
     berserker: "berserker_rage",
     summoner: "summoner_soul",
