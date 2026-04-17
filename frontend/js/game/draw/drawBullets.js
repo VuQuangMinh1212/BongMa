@@ -1498,6 +1498,104 @@ function drawKnightBullet(ctx, b) {
   ctx.restore();
 }
 
+function drawSharpshooterBullet(ctx, b) {
+  const speed = Math.hypot(b.vx, b.vy) || 1;
+  const nx = b.vx / speed;
+  const ny = b.vy / speed;
+  const px = -ny;
+  const py = nx;
+  const angle = Math.atan2(b.vy, b.vx);
+  const pulse = (Math.sin(state.frameCount * 0.24 + b.y * 0.01) + 1) * 0.5;
+  const R = Math.max(8, b.radius * 2.1);
+  const focus = !!b.sharpshooterFocus;
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+
+  if (state.frameCount % 3 === 0 || focus) {
+    state.particles.push({
+      x: b.x - nx * R * 1.1 + px * (Math.random() - 0.5) * R * 0.8,
+      y: b.y - ny * R * 1.1 + py * (Math.random() - 0.5) * R * 0.8,
+      vx: -nx * 0.48 + (Math.random() - 0.5) * 0.32,
+      vy: -ny * 0.48 + (Math.random() - 0.5) * 0.32,
+      life: 16,
+      color: focus
+        ? (Math.random() > 0.35 ? "#ff4b6a" : "#ffd36a")
+        : (Math.random() > 0.45 ? "#ffd36a" : "#b875ff"),
+      size: 1.4 + Math.random() * 2,
+    });
+  }
+
+  const trail = ctx.createLinearGradient(
+    b.x - nx * R * 4.2,
+    b.y - ny * R * 4.2,
+    b.x + nx * R,
+    b.y + ny * R,
+  );
+  trail.addColorStop(0, "rgba(21, 18, 29, 0)");
+  trail.addColorStop(0.36, "rgba(184, 117, 255, 0.16)");
+  trail.addColorStop(0.72, focus ? "rgba(255, 75, 106, 0.28)" : "rgba(255, 211, 106, 0.24)");
+  trail.addColorStop(1, "rgba(247, 241, 255, 0.62)");
+  ctx.beginPath();
+  ctx.moveTo(b.x + nx * R * 1.12, b.y + ny * R * 1.12);
+  ctx.lineTo(b.x - nx * R * 3.7 + px * R * 0.38, b.y - ny * R * 3.7 + py * R * 0.38);
+  ctx.lineTo(b.x - nx * R * 3.1 - px * R * 0.38, b.y - ny * R * 3.1 - py * R * 0.38);
+  ctx.closePath();
+  ctx.fillStyle = trail;
+  ctx.fill();
+
+  ctx.translate(b.x, b.y);
+  ctx.rotate(angle);
+
+  const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 1.9);
+  glow.addColorStop(0, "rgba(247, 241, 255, 0.52)");
+  glow.addColorStop(0.45, focus ? "rgba(255, 75, 106, 0.28)" : "rgba(255, 211, 106, 0.24)");
+  glow.addColorStop(1, "rgba(21, 18, 29, 0)");
+  ctx.beginPath();
+  ctx.ellipse(0, 0, R * (1.44 + pulse * 0.1), R * (0.64 + pulse * 0.08), 0, 0, Math.PI * 2);
+  ctx.fillStyle = glow;
+  ctx.shadowBlur = focus ? 18 : 12;
+  ctx.shadowColor = focus ? "#ff4b6a" : "#ffd36a";
+  ctx.fill();
+
+  ctx.fillStyle = "#f7f1ff";
+  ctx.strokeStyle = focus ? "#ff4b6a" : "#ffd36a";
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(R * 1.18, 0);
+  ctx.lineTo(R * 0.08, -R * 0.28);
+  ctx.lineTo(-R * 0.88, -R * 0.16);
+  ctx.lineTo(-R * 0.58, 0);
+  ctx.lineTo(-R * 0.88, R * 0.16);
+  ctx.lineTo(R * 0.08, R * 0.28);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.strokeStyle = "rgba(21, 18, 29, 0.75)";
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.moveTo(-R * 0.5, -R * 0.34);
+  ctx.lineTo(-R * 0.18, 0);
+  ctx.lineTo(-R * 0.5, R * 0.34);
+  ctx.stroke();
+
+  if (b.sharpshooterRicochet || b.sharpshooterVolley || focus) {
+    ctx.save();
+    ctx.rotate(state.frameCount * (focus ? 0.08 : 0.045));
+    ctx.strokeStyle = focus ? "rgba(255, 75, 106, 0.52)" : "rgba(255, 211, 106, 0.42)";
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.arc(0, 0, R * (0.94 + pulse * 0.08), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
 // ===== BULLETS (14+ styles) =====
 export function drawBullets(ctx) {
   const { bullets, player } = state;
@@ -1639,6 +1737,11 @@ export function drawBullets(ctx) {
 
     if (b.isPlayer && b.visualStyle === "knight_blade") {
       drawKnightBullet(ctx, b);
+      continue;
+    }
+
+    if (b.isPlayer && b.visualStyle === "sharpshooter_mark") {
+      drawSharpshooterBullet(ctx, b);
       continue;
     }
 
