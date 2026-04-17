@@ -1928,6 +1928,120 @@ function drawSniperBullet(ctx, b) {
   ctx.restore();
 }
 
+function drawSpiritBullet(ctx, b) {
+  const speed = Math.hypot(b.vx, b.vy) || 1;
+  const nx = b.vx / speed;
+  const ny = b.vy / speed;
+  const px = -ny;
+  const py = nx;
+  const angle = Math.atan2(b.vy, b.vx);
+  const pulse = (Math.sin(state.frameCount * 0.24 + b.y * 0.01) + 1) * 0.5;
+  const phased = !!b.spiritPhased;
+  const ward = !!b.spiritWard;
+  const judgement = !!b.spiritJudgement;
+  const R = Math.max(8, b.radius * (judgement ? 2.35 : ward ? 2.08 : phased ? 1.95 : 1.85));
+  const mainColor = judgement ? "#ffe58a" : ward ? "#35fff2" : phased ? "#c9b7ff" : "#9ffff8";
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+
+  if (state.frameCount % (judgement ? 1 : 2) === 0) {
+    state.particles.push({
+      x: b.x - nx * R * 1.1 + px * (Math.random() - 0.5) * R * 0.9,
+      y: b.y - ny * R * 1.1 + py * (Math.random() - 0.5) * R * 0.9,
+      vx: -nx * 0.52 + (Math.random() - 0.5) * 0.36,
+      vy: -ny * 0.52 + (Math.random() - 0.5) * 0.36,
+      life: judgement ? 22 : 18,
+      color: Math.random() > 0.38 ? mainColor : "#fff8e8",
+      size: 1.5 + Math.random() * 2.4,
+    });
+  }
+
+  const trail = ctx.createLinearGradient(
+    b.x - nx * R * 4.2,
+    b.y - ny * R * 4.2,
+    b.x + nx * R,
+    b.y + ny * R,
+  );
+  trail.addColorStop(0, "rgba(7, 16, 18, 0)");
+  trail.addColorStop(0.34, phased ? "rgba(201, 183, 255, 0.18)" : "rgba(53, 255, 242, 0.18)");
+  trail.addColorStop(0.72, judgement ? "rgba(255, 229, 138, 0.34)" : "rgba(159, 255, 248, 0.28)");
+  trail.addColorStop(1, "rgba(255, 248, 232, 0.74)");
+  ctx.beginPath();
+  ctx.moveTo(b.x + nx * R * 1.12, b.y + ny * R * 1.12);
+  ctx.quadraticCurveTo(
+    b.x - nx * R * 1.7 + px * R * (0.62 + pulse * 0.2),
+    b.y - ny * R * 1.7 + py * R * (0.62 + pulse * 0.2),
+    b.x - nx * R * 3.5,
+    b.y - ny * R * 3.5,
+  );
+  ctx.quadraticCurveTo(
+    b.x - nx * R * 1.7 - px * R * (0.62 + pulse * 0.2),
+    b.y - ny * R * 1.7 - py * R * (0.62 + pulse * 0.2),
+    b.x + nx * R * 1.12,
+    b.y + ny * R * 1.12,
+  );
+  ctx.fillStyle = trail;
+  ctx.shadowBlur = judgement ? 26 : 18;
+  ctx.shadowColor = mainColor;
+  ctx.fill();
+
+  ctx.translate(b.x, b.y);
+  ctx.rotate(angle);
+
+  const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 2.15);
+  glow.addColorStop(0, "rgba(255, 255, 255, 0.74)");
+  glow.addColorStop(0.38, judgement ? "rgba(255, 229, 138, 0.4)" : "rgba(53, 255, 242, 0.32)");
+  glow.addColorStop(1, "rgba(7, 16, 18, 0)");
+  ctx.beginPath();
+  ctx.ellipse(0, 0, R * (1.16 + pulse * 0.12), R * (0.86 + pulse * 0.1), 0, 0, Math.PI * 2);
+  ctx.fillStyle = glow;
+  ctx.fill();
+
+  ctx.fillStyle = judgement ? "#fff8e8" : "#9ffff8";
+  ctx.strokeStyle = mainColor;
+  ctx.lineWidth = 1.5;
+  ctx.shadowBlur = judgement ? 22 : 14;
+  ctx.shadowColor = mainColor;
+  ctx.beginPath();
+  ctx.moveTo(R * 1.08, 0);
+  ctx.quadraticCurveTo(R * 0.22, -R * 0.66, -R * 0.86, -R * 0.32);
+  ctx.quadraticCurveTo(-R * 0.44, 0, -R * 0.86, R * 0.32);
+  ctx.quadraticCurveTo(R * 0.22, R * 0.66, R * 1.08, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.strokeStyle = judgement ? "rgba(255, 229, 138, 0.86)" : "rgba(255, 248, 232, 0.78)";
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(-R * 0.54, 0);
+  ctx.lineTo(R * 0.58, 0);
+  ctx.moveTo(0, -R * 0.44);
+  ctx.lineTo(0, R * 0.44);
+  ctx.stroke();
+
+  ctx.save();
+  ctx.rotate(state.frameCount * (judgement ? 0.11 : 0.07));
+  ctx.strokeStyle = judgement ? "rgba(255, 229, 138, 0.58)" : "rgba(159, 255, 248, 0.46)";
+  ctx.lineWidth = 1.3;
+  ctx.setLineDash([4, 5]);
+  ctx.beginPath();
+  ctx.arc(0, 0, R * (1 + pulse * 0.08), 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  for (let i = 0; i < 4; i++) {
+    const a = i * Math.PI / 2;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * R * 0.58, Math.sin(a) * R * 0.58);
+    ctx.lineTo(Math.cos(a) * R * 1.24, Math.sin(a) * R * 1.24);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.restore();
+}
+
 // ===== BULLETS (14+ styles) =====
 export function drawBullets(ctx) {
   const { bullets, player } = state;
@@ -2089,6 +2203,11 @@ export function drawBullets(ctx) {
 
     if (b.isPlayer && b.visualStyle === "sniper_round") {
       drawSniperBullet(ctx, b);
+      continue;
+    }
+
+    if (b.isPlayer && b.visualStyle === "spirit_orb") {
+      drawSpiritBullet(ctx, b);
       continue;
     }
 

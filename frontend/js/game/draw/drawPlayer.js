@@ -15,6 +15,7 @@ import { drawOraclePlayer } from "../../characters/rare/oracle.js";
 import { drawSharpshooterPlayer } from "../../characters/legendary/sharpshooter.js";
 import { drawSniperPlayer } from "../../characters/legendary/sniper.js";
 import { drawSpeedsterPlayer } from "../../characters/common/speedster.js";
+import { drawSpiritPlayer } from "../../characters/legendary/spirit.js";
 import { drawSummonerPlayer } from "../../characters/legendary/summoner.js";
 import { drawTankPlayer } from "../../characters/rare/tank.js";
 import { drawWardenPlayer } from "../../characters/common/warden.js";
@@ -147,7 +148,7 @@ export function drawPlayer(ctx) {
   let isInvulnSkill =
     (buffs.e > 0 &&
       (char === "tank" || char === "ghost" || char === "reaper")) ||
-    (buffs.q > 0 && (char === "warden" || char === "frost"));
+    (buffs.q > 0 && (char === "warden" || char === "frost" || char === "spirit"));
 
   if (char === "speedster") {
     drawSpeedsterPlayer(ctx, state, buffs, isInvulnSkill);
@@ -241,6 +242,11 @@ export function drawPlayer(ctx) {
 
   if (char === "sniper") {
     drawSniperPlayer(ctx, state, buffs, isInvulnSkill);
+    return;
+  }
+
+  if (char === "spirit") {
+    drawSpiritPlayer(ctx, state, buffs, isInvulnSkill);
     return;
   }
 
