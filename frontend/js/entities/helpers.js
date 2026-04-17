@@ -15,6 +15,7 @@ const PLAYER_BULLET_VISUALS = {
     knight: "knight_blade",
     oracle: "oracle_eye",
     sharpshooter: "sharpshooter_mark",
+    berserker: "berserker_rage",
     medic: "medic_serum",
     tank: "tank_fortress",
 };

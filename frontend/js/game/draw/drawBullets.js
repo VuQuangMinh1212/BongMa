@@ -1596,6 +1596,117 @@ function drawSharpshooterBullet(ctx, b) {
   ctx.restore();
 }
 
+function drawBerserkerBullet(ctx, b) {
+  const speed = Math.hypot(b.vx, b.vy) || 1;
+  const nx = b.vx / speed;
+  const ny = b.vy / speed;
+  const px = -ny;
+  const py = nx;
+  const angle = Math.atan2(b.vy, b.vx);
+  const pulse = (Math.sin(state.frameCount * 0.36 + b.x * 0.01) + 1) * 0.5;
+  const blood = !!b.berserkerBlood;
+  const cleave = !!b.berserkerCleave;
+  const frenzy = !!b.berserkerFrenzy;
+  const R = Math.max(9, b.radius * (cleave ? 2.45 : blood ? 2.2 : 2));
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+
+  if (state.frameCount % (cleave || blood ? 1 : 2) === 0) {
+    state.particles.push({
+      x: b.x - nx * R * 1.1 + px * (Math.random() - 0.5) * R,
+      y: b.y - ny * R * 1.1 + py * (Math.random() - 0.5) * R,
+      vx: -nx * 0.7 + (Math.random() - 0.5) * 0.62,
+      vy: -ny * 0.7 + (Math.random() - 0.5) * 0.62,
+      life: cleave ? 22 : 16,
+      color: Math.random() > 0.34 ? "#ff263d" : "#ff8a2a",
+      size: 1.8 + Math.random() * (cleave ? 3.4 : 2.4),
+    });
+  }
+
+  const trail = ctx.createLinearGradient(
+    b.x - nx * R * (cleave ? 4.4 : 3.8),
+    b.y - ny * R * (cleave ? 4.4 : 3.8),
+    b.x + nx * R,
+    b.y + ny * R,
+  );
+  trail.addColorStop(0, "rgba(22, 9, 11, 0)");
+  trail.addColorStop(0.34, "rgba(168, 7, 24, 0.22)");
+  trail.addColorStop(0.72, blood ? "rgba(255, 38, 61, 0.4)" : "rgba(255, 138, 42, 0.28)");
+  trail.addColorStop(1, "rgba(255, 241, 234, 0.68)");
+  ctx.beginPath();
+  ctx.moveTo(b.x + nx * R * 1.18, b.y + ny * R * 1.18);
+  ctx.lineTo(b.x - nx * R * 3.35 + px * R * (cleave ? 0.9 : 0.56), b.y - ny * R * 3.35 + py * R * (cleave ? 0.9 : 0.56));
+  ctx.lineTo(b.x - nx * R * 2.75 - px * R * (cleave ? 0.9 : 0.56), b.y - ny * R * 2.75 - py * R * (cleave ? 0.9 : 0.56));
+  ctx.closePath();
+  ctx.fillStyle = trail;
+  ctx.shadowBlur = blood ? 24 : 18;
+  ctx.shadowColor = blood ? "#ff263d" : "#ff8a2a";
+  ctx.fill();
+
+  if (cleave) {
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, R * (1.7 + pulse * 0.15), angle - 0.9, angle + 0.9);
+    ctx.strokeStyle = "rgba(255, 38, 61, 0.56)";
+    ctx.lineWidth = Math.max(4, R * 0.28);
+    ctx.shadowBlur = 22;
+    ctx.shadowColor = "#ff263d";
+    ctx.stroke();
+  }
+
+  ctx.translate(b.x, b.y);
+  ctx.rotate(angle);
+
+  const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 2.1);
+  glow.addColorStop(0, "rgba(255, 241, 234, 0.62)");
+  glow.addColorStop(0.36, blood ? "rgba(255, 38, 61, 0.42)" : "rgba(255, 138, 42, 0.32)");
+  glow.addColorStop(1, "rgba(22, 9, 11, 0)");
+  ctx.beginPath();
+  ctx.ellipse(0, 0, R * (1.34 + pulse * 0.15), R * (0.78 + pulse * 0.1), 0, 0, Math.PI * 2);
+  ctx.fillStyle = glow;
+  ctx.fill();
+
+  ctx.fillStyle = blood ? "#ff263d" : "#a80718";
+  ctx.strokeStyle = "#ffe4c0";
+  ctx.lineWidth = 1.6;
+  ctx.shadowBlur = blood ? 20 : 14;
+  ctx.shadowColor = blood ? "#ff263d" : "#ff8a2a";
+  ctx.beginPath();
+  ctx.moveTo(R * 1.25, 0);
+  ctx.quadraticCurveTo(R * 0.18, -R * 0.78, -R * 0.82, -R * 0.14);
+  ctx.lineTo(-R * 0.46, 0);
+  ctx.lineTo(-R * 0.82, R * 0.14);
+  ctx.quadraticCurveTo(R * 0.18, R * 0.78, R * 1.25, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.strokeStyle = "rgba(255, 241, 234, 0.72)";
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.moveTo(R * 0.72, 0);
+  ctx.lineTo(-R * 0.42, 0);
+  ctx.moveTo(R * 0.16, -R * 0.34);
+  ctx.lineTo(-R * 0.08, 0);
+  ctx.lineTo(R * 0.16, R * 0.34);
+  ctx.stroke();
+
+  if (frenzy || blood || cleave) {
+    ctx.save();
+    ctx.rotate(state.frameCount * (blood ? 0.12 : 0.08));
+    ctx.strokeStyle = blood ? "rgba(255, 38, 61, 0.58)" : "rgba(255, 138, 42, 0.44)";
+    ctx.lineWidth = 1.4;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.arc(0, 0, R * (0.96 + pulse * 0.08), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
 // ===== BULLETS (14+ styles) =====
 export function drawBullets(ctx) {
   const { bullets, player } = state;
@@ -1742,6 +1853,11 @@ export function drawBullets(ctx) {
 
     if (b.isPlayer && b.visualStyle === "sharpshooter_mark") {
       drawSharpshooterBullet(ctx, b);
+      continue;
+    }
+
+    if (b.isPlayer && b.visualStyle === "berserker_rage") {
+      drawBerserkerBullet(ctx, b);
       continue;
     }
 
