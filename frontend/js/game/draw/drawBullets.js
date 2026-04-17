@@ -1392,6 +1392,112 @@ function drawGunnerBullet(ctx, b) {
   ctx.restore();
 }
 
+function drawKnightBullet(ctx, b) {
+  const speed = Math.hypot(b.vx, b.vy) || 1;
+  const nx = b.vx / speed;
+  const ny = b.vy / speed;
+  const px = -ny;
+  const py = nx;
+  const angle = Math.atan2(b.vy, b.vx);
+  const pulse = (Math.sin(state.frameCount * 0.28 + b.x * 0.01) + 1) * 0.5;
+  const R = Math.max(8, b.radius * (b.isKnightRiposte ? 2.1 : 1.95));
+
+  ctx.save();
+  ctx.globalCompositeOperation = "lighter";
+
+  if (state.frameCount % 2 === 0) {
+    state.particles.push({
+      x: b.x - nx * R * 1.2 + px * (Math.random() - 0.5) * R,
+      y: b.y - ny * R * 1.2 + py * (Math.random() - 0.5) * R,
+      vx: -nx * 0.5 + (Math.random() - 0.5) * 0.36,
+      vy: -ny * 0.5 + (Math.random() - 0.5) * 0.36,
+      life: 18,
+      color: Math.random() > 0.42 ? "#ffd36a" : "#d9e3ec",
+      size: 1.6 + Math.random() * 2.4,
+    });
+  }
+
+  const trail = ctx.createLinearGradient(
+    b.x - nx * R * 3.8,
+    b.y - ny * R * 3.8,
+    b.x + nx * R,
+    b.y + ny * R,
+  );
+  trail.addColorStop(0, "rgba(29, 36, 43, 0)");
+  trail.addColorStop(0.36, "rgba(79, 124, 255, 0.16)");
+  trail.addColorStop(0.7, "rgba(255, 211, 106, 0.28)");
+  trail.addColorStop(1, "rgba(255, 255, 255, 0.65)");
+  ctx.beginPath();
+  ctx.moveTo(b.x + nx * R * 1.1, b.y + ny * R * 1.1);
+  ctx.lineTo(b.x - nx * R * 3.2 + px * R * 0.52, b.y - ny * R * 3.2 + py * R * 0.52);
+  ctx.lineTo(b.x - nx * R * 2.7 - px * R * 0.52, b.y - ny * R * 2.7 - py * R * 0.52);
+  ctx.closePath();
+  ctx.fillStyle = trail;
+  ctx.fill();
+
+  ctx.translate(b.x, b.y);
+  ctx.rotate(angle);
+
+  const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 2);
+  glow.addColorStop(0, "rgba(255, 255, 255, 0.58)");
+  glow.addColorStop(0.42, b.isKnightRiposte ? "rgba(79, 124, 255, 0.34)" : "rgba(255, 211, 106, 0.3)");
+  glow.addColorStop(1, "rgba(29, 36, 43, 0)");
+  ctx.beginPath();
+  ctx.ellipse(0, 0, R * (1.55 + pulse * 0.12), R * (0.72 + pulse * 0.08), 0, 0, Math.PI * 2);
+  ctx.fillStyle = glow;
+  ctx.shadowBlur = 20;
+  ctx.shadowColor = b.isKnightRiposte ? "#4f7cff" : "#ffd36a";
+  ctx.fill();
+
+  ctx.fillStyle = "#d9e3ec";
+  ctx.strokeStyle = "#ffd36a";
+  ctx.lineWidth = 1.8;
+  ctx.shadowBlur = 16;
+  ctx.shadowColor = "#ffd36a";
+  ctx.beginPath();
+  ctx.moveTo(R * 1.22, 0);
+  ctx.lineTo(R * 0.08, -R * 0.36);
+  ctx.lineTo(-R * 0.92, 0);
+  ctx.lineTo(R * 0.08, R * 0.36);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.72)";
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(R * 0.78, 0);
+  ctx.lineTo(-R * 0.5, 0);
+  ctx.stroke();
+
+  ctx.strokeStyle = "#66717d";
+  ctx.lineWidth = 2.6;
+  ctx.beginPath();
+  ctx.moveTo(-R * 0.12, -R * 0.66);
+  ctx.lineTo(-R * 0.12, R * 0.66);
+  ctx.stroke();
+
+  ctx.fillStyle = b.isKnightRiposte ? "#4f7cff" : "#ffd36a";
+  ctx.beginPath();
+  ctx.arc(-R * 0.42, 0, R * 0.18, 0, Math.PI * 2);
+  ctx.fill();
+
+  if (b.isKnightRiposte) {
+    ctx.save();
+    ctx.rotate(state.frameCount * 0.08);
+    ctx.strokeStyle = "rgba(79, 124, 255, 0.56)";
+    ctx.lineWidth = 1.4;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.arc(0, 0, R * (1 + pulse * 0.08), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
 // ===== BULLETS (14+ styles) =====
 export function drawBullets(ctx) {
   const { bullets, player } = state;
@@ -1528,6 +1634,11 @@ export function drawBullets(ctx) {
 
     if (b.isPlayer && b.visualStyle === "gunner_round") {
       drawGunnerBullet(ctx, b);
+      continue;
+    }
+
+    if (b.isPlayer && b.visualStyle === "knight_blade") {
+      drawKnightBullet(ctx, b);
       continue;
     }
 
